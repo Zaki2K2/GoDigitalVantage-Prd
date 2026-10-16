@@ -10,6 +10,9 @@
     "start:lan": "ng serve --host 0.0.0.0"
   },
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "dependencies": {
     "@angular/common": "^20.3.0",
     "@angular/compiler": "^20.3.0",

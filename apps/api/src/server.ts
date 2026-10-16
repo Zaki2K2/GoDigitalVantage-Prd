@@ -1,9 +1,9 @@
-import mongoose from 'mongoose';
+import { connectDb } from './db';
 import { env } from './config/env';
 import { createApp } from './app';
 
 async function main() {
-  await mongoose.connect(env.MONGODB_URI);
+  await connectDb();
   createApp().listen(env.PORT, () => console.log(`API listening on :${env.PORT}`));
 }
 

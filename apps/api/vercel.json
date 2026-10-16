@@ -1,0 +1,8 @@
+{
+  "framework": null,
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "functions": { "api/index.js": { "maxDuration": 15, "includeFiles": "dist/**" } },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+}

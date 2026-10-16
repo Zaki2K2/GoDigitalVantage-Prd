@@ -30,6 +30,10 @@ export const envSchema = z
     JWT_REFRESH_SECRET: z.string().min(32),
     PUBLIC_BASE_URL: publicBaseUrl.optional(),
     PUBLIC_APP_BASE_URL: publicBaseUrl.optional(),
+    /** Reverse-proxy hops to trust for client IPs (rate limits, anonymous reward cooldown). 0 = none. */
+    /** `mongo` shares rate-limit counters across serverless instances; `memory` for one process. */
+    RATE_LIMIT_STORE: z.enum(['memory', 'mongo']).default('memory'),
+    TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
     LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
     REGISTER_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
     PUBLIC_SUBMIT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
