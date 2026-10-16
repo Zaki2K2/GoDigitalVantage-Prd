@@ -1,0 +1,507 @@
+<div class="relative isolate min-h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+  <div class="glow top-[-9rem] left-1/2 size-[34rem] -translate-x-1/2 bg-brand-500/20"></div>
+  <div class="glow top-40 right-[-8rem] size-80 bg-blue-light-500/15"></div>
+
+  <main class="public relative mx-auto max-w-xl px-4 pt-8 pb-16 sm:pt-12">
+    @switch (state()) {
+      @case ('loading') {
+        <div class="card" aria-busy="true">
+          <div class="skeleton mx-auto mb-4 size-14 !rounded-2xl"></div>
+          <div class="skeleton mx-auto mb-6 h-5 w-1/2"></div>
+          <div class="skeleton mb-3 h-11 w-full"></div>
+          <div class="skeleton mb-3 h-24 w-full"></div>
+          <div class="skeleton h-11 w-full"></div>
+          <p role="status" class="sr-only">Loading…</p>
+        </div>
+      }
+      @case ('unavailable') {
+        <div class="card animate-fade-up text-center" role="alert">
+          <span
+            class="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-warning-50 text-warning-600 dark:bg-warning-500/15"
+          >
+            <svg
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" />
+            </svg>
+          </span>
+          <h1 class="mb-2 text-xl font-semibold">This form isn’t available</h1>
+          <p class="muted m-0">
+            The feedback link may be incorrect or the business hasn’t published its form yet. Please
+            check the QR code or ask the business for a new link.
+          </p>
+        </div>
+      }
+      @case ('error') {
+        <div class="card animate-fade-up text-center" role="alert">
+          <h1 class="mb-2 text-xl font-semibold">Something went wrong</h1>
+          <p class="muted mt-0 mb-5">
+            We couldn’t load this form. Check your connection and try again.
+          </p>
+          <button type="button" class="btn" (click)="load()">Try again</button>
+        </div>
+      }
+      @default {
+        @if (form(); as f) {
+          <header class="mb-6 flex animate-fade-up flex-col items-center text-center">
+            <span
+              class="mb-3 flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-blue-light-500 text-xl font-semibold text-white shadow-glow"
+              aria-hidden="true"
+            >
+              {{ f.business.name.charAt(0).toUpperCase() }}
+            </span>
+            <p class="biz m-0 text-lg font-semibold text-gray-900 dark:text-white">
+              {{ f.business.name }}
+            </p>
+            <p class="muted m-0">{{ f.business.category }}</p>
+          </header>
+
+          @if (result(); as r) {
+            <div
+              class="card thanks animate-pop text-center"
+              role="status"
+              data-confirmation
+              tabindex="-1"
+            >
+              <span
+                class="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
+              >
+                <svg
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </span>
+              <h1 class="mb-2 text-title-sm font-semibold max-sm:text-2xl">Thank you!</h1>
+              <p class="muted mt-0 mb-5">
+                Your feedback has been sent to {{ f.business.name }}.
+                @if (r.duplicate) {
+                  We had already received it, so nothing was added twice.
+                }
+              </p>
+              @if (r.reward; as reward) {
+                <div class="mb-5">
+                  <p class="mt-0 mb-3 text-theme-sm font-medium text-gray-800 dark:text-gray-200">
+                    We’re sorry the visit fell short. Here is something for next time:
+                  </p>
+                  <app-reward-card [reward]="reward" [businessName]="f.business.name" />
+                  <a
+                    class="btn secondary sm mt-3"
+                    [href]="'/reward/' + reward.token"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    Open your reward link to save it
+                  </a>
+                </div>
+              }
+              @if (r.googleReviewUrl; as url) {
+                <div
+                  class="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-white/[0.03]"
+                >
+                  <p class="muted mt-0 mb-3">
+                    If you’d like, you can also share your experience publicly on Google.
+                  </p>
+                  <a class="btn block" [href]="url" target="_blank" rel="noopener noreferrer">
+                    Leave a Google review
+                  </a>
+                </div>
+              }
+            </div>
+          } @else {
+            <form
+              class="card animate-fade-up"
+              (submit)="$event.preventDefault(); submit()"
+              [attr.aria-busy]="submitting()"
+              novalidate
+            >
+              <h1 class="mb-1 text-xl font-semibold sm:text-theme-xl">
+                {{ f.questionnaire.title }}
+              </h1>
+              @if (f.questionnaire.description) {
+                <p class="muted mt-0 mb-5">{{ f.questionnaire.description }}</p>
+              } @else {
+                <p class="muted mt-0 mb-5">It takes about a minute.</p>
+              }
+              <div class="mb-6 rounded-xl bg-gray-50 p-3 dark:bg-white/5">
+                <div
+                  class="mb-2 flex items-center justify-between gap-2 text-theme-xs text-gray-500 dark:text-gray-400"
+                >
+                  <span>Share as much as you like</span>
+                  <span>{{ progress().answered }} / {{ progress().total }} answered</span>
+                </div>
+                <div
+                  class="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800"
+                  role="progressbar"
+                  aria-label="Questions answered"
+                  aria-valuemin="0"
+                  [attr.aria-valuemax]="progress().total"
+                  [attr.aria-valuenow]="progress().answered"
+                >
+                  <div
+                    class="h-full rounded-full bg-brand-500 transition-all"
+                    [style.width.%]="progress().percent"
+                  ></div>
+                </div>
+                <p class="muted mt-2 mb-0 text-theme-xs">
+                  Questions marked * are required. Contact details are optional.
+                </p>
+              </div>
+
+              @if (errors()['answers']; as msg) {
+                <div class="alert" role="alert">{{ msg }}</div>
+              }
+
+              @for (q of f.questionnaire.questions; track q.id; let i = $index) {
+                <div class="mb-6" [class.has-error]="errors()[q.id ?? '']">
+                  @switch (q.type) {
+                    @case ('short_text') {
+                      <label
+                        [for]="'q-' + i"
+                        class="mb-1.5 block text-theme-sm font-medium text-gray-800 dark:text-gray-200"
+                      >
+                        {{ q.label }}
+                        @if (q.required) {
+                          <span class="text-error-500" aria-hidden="true"> *</span>
+                        }
+                      </label>
+                      @if (q.helpText) {
+                        <span
+                          class="mb-1.5 block text-theme-xs text-gray-500 dark:text-gray-400"
+                          [id]="'h-' + i"
+                          >{{ q.helpText }}</span
+                        >
+                      }
+                      <input
+                        [id]="'q-' + i"
+                        type="text"
+                        class="input"
+                        maxlength="300"
+                        [required]="q.required"
+                        [disabled]="submitting()"
+                        [class.invalid]="errors()[q.id ?? '']"
+                        [value]="textOf(q.id)"
+                        [attr.aria-invalid]="errors()[q.id ?? ''] ? 'true' : null"
+                        [attr.aria-describedby]="describedBy(i, q.helpText, q.id)"
+                        (input)="setText(q.id ?? '', val($event))"
+                      />
+                    }
+                    @case ('long_text') {
+                      <label
+                        [for]="'q-' + i"
+                        class="mb-1.5 block text-theme-sm font-medium text-gray-800 dark:text-gray-200"
+                      >
+                        {{ q.label }}
+                        @if (q.required) {
+                          <span class="text-error-500" aria-hidden="true"> *</span>
+                        }
+                      </label>
+                      @if (q.helpText) {
+                        <span
+                          [id]="'h-' + i"
+                          class="mb-1.5 block text-theme-xs text-gray-500 dark:text-gray-400"
+                          >{{ q.helpText }}</span
+                        >
+                      }
+                      <textarea
+                        [id]="'q-' + i"
+                        rows="4"
+                        class="input !h-auto"
+                        maxlength="2000"
+                        [required]="q.required"
+                        [disabled]="submitting()"
+                        [class.invalid]="errors()[q.id ?? '']"
+                        [value]="textOf(q.id)"
+                        [attr.aria-invalid]="errors()[q.id ?? ''] ? 'true' : null"
+                        [attr.aria-describedby]="describedBy(i, q.helpText, q.id)"
+                        (input)="setText(q.id ?? '', val($event))"
+                      ></textarea>
+                    }
+                    @case ('rating') {
+                      <fieldset
+                        class="m-0 min-w-0 border-0 p-0"
+                        [disabled]="submitting()"
+                        [attr.aria-invalid]="errors()[q.id ?? ''] ? 'true' : null"
+                        [attr.aria-describedby]="describedBy(i, q.helpText, q.id)"
+                      >
+                        <legend
+                          class="mb-1.5 text-theme-sm font-medium text-gray-800 dark:text-gray-200"
+                        >
+                          {{ q.label }}
+                          @if (q.required) {
+                            <span class="text-error-500" aria-hidden="true"> *</span>
+                          }
+                        </legend>
+                        @if (q.helpText) {
+                          <span
+                            class="mb-1.5 block text-theme-xs text-gray-500 dark:text-gray-400"
+                            [id]="'h-' + i"
+                            >{{ q.helpText }}</span
+                          >
+                        }
+                        <div class="stars flex gap-2">
+                          @for (s of stars; track s) {
+                            <label class="star relative flex-1 cursor-pointer">
+                              <input
+                                type="radio"
+                                class="peer sr-only"
+                                [name]="'q-' + i"
+                                [value]="s"
+                                [required]="q.required"
+                                [attr.aria-label]="s + ' out of 5'"
+                                [checked]="rating()[q.id ?? ''] === s"
+                                (change)="setRating(q.id ?? '', s)"
+                              />
+                              <span
+                                class="flex h-12 items-center justify-center rounded-xl border border-gray-300 bg-white text-base font-semibold text-gray-600 transition peer-checked:border-brand-600 peer-checked:bg-brand-600 peer-checked:text-white peer-checked:shadow-glow peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-500 hover:border-brand-400 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                              >
+                                {{ s }}
+                              </span>
+                            </label>
+                          }
+                        </div>
+                        <div
+                          class="scale mt-1.5 flex justify-between text-theme-xs text-gray-500 dark:text-gray-400"
+                        >
+                          <span>Poor</span><span>Excellent</span>
+                        </div>
+                      </fieldset>
+                    }
+                    @default {
+                      <fieldset
+                        class="m-0 min-w-0 border-0 p-0"
+                        [disabled]="submitting()"
+                        [attr.aria-invalid]="errors()[q.id ?? ''] ? 'true' : null"
+                        [attr.aria-describedby]="describedBy(i, q.helpText, q.id)"
+                      >
+                        <legend
+                          class="mb-1.5 text-theme-sm font-medium text-gray-800 dark:text-gray-200"
+                        >
+                          {{ q.label }}
+                          @if (q.required) {
+                            <span class="text-error-500" aria-hidden="true"> *</span>
+                            <span class="sr-only"> (required)</span>
+                          }
+                        </legend>
+                        @if (q.helpText) {
+                          <span
+                            class="mb-1.5 block text-theme-xs text-gray-500 dark:text-gray-400"
+                            [id]="'h-' + i"
+                            >{{ q.helpText }}</span
+                          >
+                        }
+                        @for (c of q.choices; track c.id) {
+                          @if (q.type === 'single_choice') {
+                            <label
+                              class="mb-2 flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-theme-sm text-gray-800 transition hover:border-brand-300 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:has-[:checked]:bg-brand-500/10"
+                            >
+                              <input
+                                type="radio"
+                                class="size-4"
+                                [name]="'q-' + i"
+                                [required]="q.required"
+                                [checked]="isPicked(q.id ?? '', c.id ?? '')"
+                                (change)="setSingle(q.id ?? '', c.id ?? '')"
+                              />
+                              {{ c.label }}
+                            </label>
+                          } @else {
+                            <label
+                              class="mb-2 flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-theme-sm text-gray-800 transition hover:border-brand-300 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-200 dark:has-[:checked]:bg-brand-500/10"
+                            >
+                              <input
+                                type="checkbox"
+                                class="size-4"
+                                [checked]="isPicked(q.id ?? '', c.id ?? '')"
+                                (change)="toggleMulti(q.id ?? '', c.id ?? '', chk($event))"
+                              />
+                              {{ c.label }}
+                            </label>
+                          }
+                        }
+                      </fieldset>
+                    }
+                  }
+                  @if (errors()[q.id ?? '']; as msg) {
+                    <p
+                      class="error mt-1.5 mb-0 text-theme-sm text-error-600 dark:text-error-400"
+                      [id]="'e-' + i"
+                    >
+                      {{ msg }}
+                    </p>
+                  }
+                </div>
+              }
+
+              <fieldset
+                class="contact m-0 mt-8 min-w-0 rounded-2xl border border-gray-200 bg-gray-50/70 p-4 sm:p-5 dark:border-gray-800 dark:bg-white/[0.03]"
+                [disabled]="submitting()"
+              >
+                <legend class="px-1 text-theme-sm font-semibold text-gray-900 dark:text-white">
+                  Want a reply? (optional)
+                </legend>
+                <p class="hint muted mt-0 mb-4">
+                  Leave this blank to stay anonymous. Sharing your details never signs you up for
+                  messages.
+                </p>
+                <div class="field">
+                  <label for="c-name">Name</label>
+                  <input
+                    id="c-name"
+                    type="text"
+                    autocomplete="name"
+                    maxlength="120"
+                    [attr.aria-invalid]="errors()['contact'] ? 'true' : null"
+                    [attr.aria-describedby]="errors()['contact'] ? 'contact-error' : null"
+                    [value]="name()"
+                    (input)="setContact('name', val($event))"
+                  />
+                </div>
+                <div class="field">
+                  <label for="c-email">Email</label>
+                  <input
+                    id="c-email"
+                    type="email"
+                    autocomplete="email"
+                    maxlength="254"
+                    [value]="email()"
+                    [class.invalid]="errors()['contact.email']"
+                    [attr.aria-invalid]="errors()['contact.email'] ? 'true' : null"
+                    [attr.aria-describedby]="errors()['contact.email'] ? 'email-error' : null"
+                    (input)="setContact('email', val($event))"
+                  />
+                  @if (errors()['contact.email']; as msg) {
+                    <span id="email-error" class="error">{{ msg }}</span>
+                  }
+                </div>
+                <div class="field">
+                  <label for="c-phone">Mobile number</label>
+                  <input
+                    id="c-phone"
+                    type="tel"
+                    autocomplete="tel"
+                    maxlength="40"
+                    placeholder="+14155550123"
+                    [value]="phone()"
+                    [class.invalid]="errors()['contact.phone']"
+                    [attr.aria-invalid]="errors()['contact.phone'] ? 'true' : null"
+                    [attr.aria-describedby]="
+                      errors()['contact.phone'] ? 'phone-hint phone-error' : 'phone-hint'
+                    "
+                    (input)="setPhone(val($event))"
+                  />
+                  <span id="phone-hint" class="hint"
+                    >Include your country code, e.g. +1 for the US.</span
+                  >
+                  @if (errors()['contact.phone']; as msg) {
+                    <span id="phone-error" class="error">{{ msg }}</span>
+                  }
+                </div>
+                @if (errors()['contact']; as msg) {
+                  <p
+                    id="contact-error"
+                    class="error mt-0 mb-3 text-theme-sm text-error-600 dark:text-error-400"
+                  >
+                    {{ msg }}
+                  </p>
+                }
+
+                <div class="consent">
+                  <label
+                    class="mb-2 flex items-start gap-3 text-theme-sm text-gray-700 dark:text-gray-300"
+                    [class.opacity-60]="!phone().trim()"
+                  >
+                    <input
+                      type="checkbox"
+                      class="mt-0.5 size-4 shrink-0"
+                      [checked]="reviewSms()"
+                      [disabled]="!phone().trim()"
+                      (change)="reviewSms.set(chk($event))"
+                    />
+                    <span>{{ f.consent.reviewRequestSms }}</span>
+                  </label>
+                  <label
+                    class="mb-2 flex items-start gap-3 text-theme-sm text-gray-700 dark:text-gray-300"
+                    [class.opacity-60]="!phone().trim()"
+                  >
+                    <input
+                      type="checkbox"
+                      class="mt-0.5 size-4 shrink-0"
+                      [checked]="marketingSms()"
+                      [disabled]="!phone().trim()"
+                      (change)="marketingSms.set(chk($event))"
+                    />
+                    <span>{{ f.consent.marketingSms }}</span>
+                  </label>
+                  <p class="hint muted mt-2 mb-0">
+                    These boxes are optional and unticked. They only apply if you enter a mobile
+                    number.
+                  </p>
+                  @if (errors()['consent']; as msg) {
+                    <p class="error mt-2 mb-0 text-theme-sm text-error-600 dark:text-error-400">
+                      {{ msg }}
+                    </p>
+                  }
+                </div>
+              </fieldset>
+
+              <!-- Honeypot: hidden from people and assistive tech; bots tend to fill it. -->
+              <div
+                class="hp"
+                aria-hidden="true"
+                style="
+                  position: absolute;
+                  left: -10000px;
+                  width: 1px;
+                  height: 1px;
+                  overflow: hidden;
+                "
+              >
+                <label for="hp-site">Website</label>
+                <input
+                  id="hp-site"
+                  type="text"
+                  tabindex="-1"
+                  autocomplete="off"
+                  [value]="honeypot()"
+                  (input)="honeypot.set(val($event))"
+                />
+              </div>
+
+              @if (formError(); as msg) {
+                <div class="alert mt-5 mb-0" role="alert" data-form-error tabindex="-1">
+                  {{ msg }}
+                </div>
+              }
+              <button
+                type="submit"
+                class="btn send mt-5 block w-full !py-3 text-base"
+                [disabled]="submitting()"
+              >
+                {{ submitting() ? 'Sending…' : 'Send feedback' }}
+              </button>
+              <p class="muted mt-4 mb-0 text-center text-theme-xs">Powered by GoDigitalVantage</p>
+            </form>
+          }
+        }
+      }
+    }
+  </main>
+</div>

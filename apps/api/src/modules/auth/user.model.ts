@@ -1,0 +1,20 @@
+import { Schema, model, type InferSchemaType, type Types } from 'mongoose';
+
+export const USER_STATUSES = ['active', 'disabled'] as const;
+
+const userSchema = new Schema(
+  {
+    fullName: { type: String, required: true, trim: true, maxlength: 120 },
+    emailLowercase: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    passwordHash: { type: String, required: true },
+    status: { type: String, enum: USER_STATUSES, default: 'active', required: true },
+  },
+  { timestamps: true, collection: 'users' },
+);
+
+export type UserDoc = InferSchemaType<typeof userSchema> & { _id: Types.ObjectId };
+export const User = model('User', userSchema);
+
+export function toUserDto(u: UserDoc) {
+  return { id: u._id.toString(), fullName: u.fullName, email: u.emailLowercase, status: u.status };
+}

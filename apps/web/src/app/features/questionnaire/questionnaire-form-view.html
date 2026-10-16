@@ -1,0 +1,96 @@
+<div class="form-view">
+  <h2 class="!mb-1 text-theme-xl font-semibold">{{ title() }}</h2>
+  @if (description(); as text) {
+    <p class="muted mt-0 mb-4">{{ text }}</p>
+  }
+  @for (q of questions(); track $index; let i = $index) {
+    <div class="mt-5">
+      @switch (q.type) {
+        @case ('short_text') {
+          <label
+            [for]="prefix() + '-' + i"
+            class="mb-1.5 block text-theme-sm font-medium text-gray-800 dark:text-gray-200"
+          >
+            {{ q.label }}
+            @if (q.required) {
+              <span class="text-error-500" aria-hidden="true"> *</span>
+            }
+          </label>
+          @if (q.helpText) {
+            <span class="mb-1.5 block text-theme-xs text-gray-500 dark:text-gray-400">{{
+              q.helpText
+            }}</span>
+          }
+          <input [id]="prefix() + '-' + i" type="text" class="input" disabled />
+        }
+        @case ('long_text') {
+          <label
+            [for]="prefix() + '-' + i"
+            class="mb-1.5 block text-theme-sm font-medium text-gray-800 dark:text-gray-200"
+          >
+            {{ q.label }}
+            @if (q.required) {
+              <span class="text-error-500" aria-hidden="true"> *</span>
+            }
+          </label>
+          @if (q.helpText) {
+            <span class="mb-1.5 block text-theme-xs text-gray-500 dark:text-gray-400">{{
+              q.helpText
+            }}</span>
+          }
+          <textarea [id]="prefix() + '-' + i" rows="3" class="input" disabled></textarea>
+        }
+        @case ('rating') {
+          <fieldset disabled class="m-0 min-w-0 border-0 p-0">
+            <legend class="mb-1.5 text-theme-sm font-medium text-gray-800 dark:text-gray-200">
+              {{ q.label }}
+              @if (q.required) {
+                <span class="text-error-500" aria-hidden="true"> *</span>
+              }
+            </legend>
+            @if (q.helpText) {
+              <span class="mb-1.5 block text-theme-xs text-gray-500 dark:text-gray-400">{{
+                q.helpText
+              }}</span>
+            }
+            <div class="flex gap-2">
+              @for (s of stars; track s) {
+                <span
+                  class="flex h-11 flex-1 items-center justify-center rounded-lg border border-gray-300 text-theme-sm font-semibold text-gray-600 dark:border-gray-700 dark:text-gray-300"
+                >
+                  {{ s }}
+                </span>
+              }
+            </div>
+          </fieldset>
+        }
+        @default {
+          <fieldset disabled class="m-0 min-w-0 border-0 p-0">
+            <legend class="mb-1.5 text-theme-sm font-medium text-gray-800 dark:text-gray-200">
+              {{ q.label }}
+              @if (q.required) {
+                <span class="text-error-500" aria-hidden="true"> *</span>
+              }
+            </legend>
+            @if (q.helpText) {
+              <span class="mb-1.5 block text-theme-xs text-gray-500 dark:text-gray-400">{{
+                q.helpText
+              }}</span>
+            }
+            @for (c of q.choices; track $index) {
+              <label
+                class="mb-2 flex items-center gap-2.5 text-theme-sm text-gray-700 dark:text-gray-300"
+              >
+                <input
+                  [type]="q.type === 'single_choice' ? 'radio' : 'checkbox'"
+                  [name]="prefix() + '-' + i"
+                />
+                {{ c.label }}
+              </label>
+            }
+          </fieldset>
+        }
+      }
+    </div>
+  }
+</div>

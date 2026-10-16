@@ -1,0 +1,408 @@
+<main class="page dash">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Overview</p>
+      <h1>Hello, {{ auth.user()?.fullName }}</h1>
+      @if (business(); as b) {
+        <p class="sub">Here is how feedback for {{ b.name }} is going.</p>
+      }
+    </div>
+    @if (business()) {
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="segmented" role="group" aria-label="Date range">
+          @for (d of ranges; track d) {
+            <button
+              type="button"
+              [attr.aria-pressed]="range() === d"
+              [disabled]="refreshing()"
+              (click)="setRange(d)"
+            >
+              {{ d }} days
+            </button>
+          }
+        </div>
+        <button class="btn secondary" type="button" [disabled]="refreshing()" (click)="loadStats()">
+          {{ refreshing() ? 'Refreshing…' : 'Refresh' }}
+        </button>
+        <a class="btn" routerLink="/qr"><app-icon name="qr" [size]="18" /> Get QR code</a>
+      </div>
+    }
+  </header>
+
+  @if (loading()) {
+    <div class="grid gap-4 grid-cols-2 xl:grid-cols-4" role="status" aria-label="Loading dashboard">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <div class="skeleton h-32 !rounded-2xl"></div>
+      }
+    </div>
+  } @else if (error(); as message) {
+    <div class="alert" role="alert">
+      <app-icon name="alert" [size]="18" /><span>{{ message }}</span>
+    </div>
+  } @else if (business(); as b) {
+    @if (statsError(); as message) {
+      <div class="alert" role="alert">
+        <app-icon name="alert" [size]="18" />
+        <span class="flex-1">{{ message }}</span>
+        <button type="button" class="btn secondary sm" (click)="loadStats()">Try again</button>
+      </div>
+    } @else if (stats(); as s) {
+      <p class="muted mb-3 text-theme-xs">
+        All-time totals · activity chart uses the selected date range.
+      </p>
+      <dl
+        class="stats mb-5 grid gap-4 transition-opacity grid-cols-2 xl:grid-cols-4"
+        aria-label="Key numbers"
+        [class.opacity-60]="refreshing()"
+        [attr.aria-busy]="refreshing()"
+      >
+        @for (c of cards(s); track c.label) {
+          <div
+            class="stat card group relative !mb-0 overflow-hidden transition hover:-translate-y-0.5 hover:shadow-theme-md"
+          >
+            <span class="mb-4 flex size-11 items-center justify-center rounded-xl" [class]="c.tone">
+              <app-icon [name]="c.icon" [size]="22" />
+            </span>
+            <dt class="text-theme-sm text-gray-500 dark:text-gray-400">{{ c.label }}</dt>
+            <dd class="m-0 mt-1 text-title-sm font-semibold text-gray-900 dark:text-white/90">
+              {{ c.value }}
+              <small
+                class="mt-1 block text-theme-xs font-normal text-gray-500 dark:text-gray-400"
+                >{{ c.note }}</small
+              >
+            </dd>
+          </div>
+        }
+      </dl>
+
+      <div class="mb-5 grid items-stretch gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <section class="card !mb-0" aria-labelledby="trend-h">
+          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 id="trend-h" class="!mb-0">Activity, last {{ s.days }} days</h2>
+            <div class="flex gap-4 text-theme-xs text-gray-500 dark:text-gray-400">
+              <span class="inline-flex items-center gap-1.5"
+                ><i class="size-2.5 rounded-full bg-blue-light-400"></i>Scans</span
+              >
+              <span class="inline-flex items-center gap-1.5"
+                ><i class="size-2.5 rounded-full bg-brand-500"></i>Responses</span
+              >
+            </div>
+          </div>
+          <p class="readout muted mt-0 mb-3 min-h-5" aria-live="off">
+            @if (hovered(); as h) {
+              <strong class="text-gray-900 dark:text-white">{{
+                h.date + 'T00:00:00Z' | date: 'MMM d' : 'UTC'
+              }}</strong>
+              · {{ h.scans }} scans · {{ h.responses }} responses
+            } @else {
+              Point to a day, or open the data table below.
+            }
+          </p>
+          <div class="trend">
+            <svg
+              class="chart block h-auto w-full"
+              [attr.viewBox]="'0 0 ' + view.w + ' ' + view.h"
+              role="img"
+              [attr.aria-label]="
+                inRange().responses +
+                ' responses and ' +
+                inRange().scans +
+                ' scans in the last ' +
+                s.days +
+                ' days'
+              "
+              (mouseleave)="hover.set(null)"
+            >
+              <defs>
+                <linearGradient id="fillResp" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="var(--color-brand-500)" stop-opacity="0.3" />
+                  <stop offset="1" stop-color="var(--color-brand-500)" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              @for (g of grid(); track g.value) {
+                <line
+                  class="stroke-gray-200 dark:stroke-gray-800"
+                  [attr.x1]="34"
+                  [attr.x2]="view.w - 10"
+                  [attr.y1]="g.y"
+                  [attr.y2]="g.y"
+                  stroke-dasharray="3 4"
+                />
+                <text class="fill-gray-400 text-[13px]" x="28" [attr.y]="g.y + 3" text-anchor="end">
+                  {{ g.value }}
+                </text>
+              }
+              <path [attr.d]="responsesArea()" fill="url(#fillResp)" />
+              <path
+                class="l-scans fill-none stroke-blue-light-400"
+                stroke-width="2"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+                [attr.d]="scansPath()"
+              />
+              <path
+                class="l-resp fill-none stroke-brand-500"
+                stroke-width="2.5"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+                [attr.d]="responsesPath()"
+              />
+              @for (l of labels(); track l.date) {
+                <text
+                  class="fill-gray-400 text-[13px]"
+                  [attr.x]="l.x"
+                  [attr.y]="view.h - 6"
+                  text-anchor="middle"
+                >
+                  {{ l.date + 'T00:00:00Z' | date: 'MMM d' : 'UTC' }}
+                </text>
+              }
+              @if (hovered(); as h) {
+                <line
+                  class="stroke-gray-300 dark:stroke-gray-700"
+                  [attr.x1]="h.x"
+                  [attr.x2]="h.x"
+                  [attr.y1]="12"
+                  [attr.y2]="view.h - 26"
+                />
+                <circle
+                  class="fill-brand-500 stroke-white dark:stroke-gray-900"
+                  stroke-width="2"
+                  [attr.cx]="h.x"
+                  [attr.cy]="y(h.responses)"
+                  r="4.5"
+                />
+                <circle
+                  class="fill-blue-light-400 stroke-white dark:stroke-gray-900"
+                  stroke-width="2"
+                  [attr.cx]="h.x"
+                  [attr.cy]="y(h.scans)"
+                  r="4"
+                />
+              }
+              @for (d of s.trend; track d.date; let i = $index) {
+                <g
+                  class="col"
+                  (mouseenter)="hover.set(i)"
+                  [attr.data-date]="d.date"
+                  [attr.data-scans]="d.scans"
+                  [attr.data-responses]="d.responses"
+                >
+                  <rect
+                    [attr.x]="x(i) - colWidth() / 2"
+                    y="0"
+                    [attr.width]="colWidth()"
+                    [attr.height]="view.h - 26"
+                    fill="transparent"
+                  />
+                </g>
+              }
+            </svg>
+          </div>
+          <details class="mt-3 text-theme-sm">
+            <summary
+              class="cursor-pointer text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+            >
+              View as a table
+            </summary>
+            <div
+              class="mt-2 max-h-64 overflow-auto rounded-lg border border-gray-200 dark:border-gray-800"
+            >
+              <table class="w-full text-left text-theme-sm">
+                <caption class="sr-only">
+                  Daily activity in
+                  {{
+                    s.timezone
+                  }}
+                  for the last
+                  {{
+                    s.days
+                  }}
+                  days
+                </caption>
+                <thead
+                  class="sticky top-0 bg-gray-50 text-theme-xs text-gray-500 uppercase dark:bg-gray-900"
+                >
+                  <tr>
+                    <th scope="col" class="px-3 py-2">Date</th>
+                    <th scope="col" class="px-3 py-2">Scans</th>
+                    <th scope="col" class="px-3 py-2">Responses</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (d of s.trend; track d.date) {
+                    <tr class="border-t border-gray-100 dark:border-gray-800">
+                      <td class="px-3 py-1.5">{{ d.date }}</td>
+                      <td class="px-3 py-1.5">{{ d.scans }}</td>
+                      <td class="px-3 py-1.5">{{ d.responses }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </section>
+
+        <section class="card !mb-0" aria-labelledby="dist-h">
+          <div
+            class="mb-5 rounded-2xl border border-brand-200 bg-brand-50 p-4 dark:border-brand-500/20 dark:bg-brand-500/10"
+            aria-labelledby="smile-h"
+          >
+            <p
+              id="smile-h"
+              class="m-0 text-theme-sm font-semibold text-brand-700 dark:text-brand-400"
+            >
+              Smile Score
+            </p>
+            <p
+              class="mt-1 mb-1 text-title-md font-semibold text-gray-900 dark:text-white"
+              data-testid="smile-score"
+            >
+              {{ smileScore().percent === null ? '—' : smileScore().percent + '%' }}
+            </p>
+            <p class="muted m-0 text-theme-xs">
+              {{ smileScore().positive }} of {{ smileScore().rated }} rated responses gave 4 or 5
+              stars. All time; uses the first answered rating per response.
+            </p>
+          </div>
+          <h2 id="dist-h">Rating breakdown</h2>
+          <p class="muted mt-0 mb-4">All time, from your questionnaire’s rating question.</p>
+          @if (hasRatings()) {
+            <ul class="m-0 flex list-none flex-col gap-3 p-0">
+              @for (d of distribution(); track d.star) {
+                <li class="grid grid-cols-[2.5rem_1fr_4.5rem] items-center gap-3 text-theme-sm">
+                  <span
+                    class="inline-flex items-center gap-1 font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ d.star }} <app-icon name="star" [size]="14" />
+                  </span>
+                  <span
+                    class="h-2.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class="block h-full rounded-full bg-gradient-to-r from-brand-500 to-blue-light-400 transition-all duration-700"
+                      [style.width.%]="d.pct"
+                    ></span>
+                  </span>
+                  <span class="text-right text-gray-700 dark:text-gray-300">
+                    {{ d.count }} <small class="text-gray-400">({{ d.pct }}%)</small>
+                  </span>
+                </li>
+              }
+            </ul>
+          } @else {
+            <div class="empty">
+              <app-icon name="star" [size]="26" />
+              <p class="m-0">Ratings appear here once customers answer your rating question.</p>
+            </div>
+          }
+        </section>
+      </div>
+
+      <div class="grid items-start gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <section class="card !mb-0" aria-labelledby="recent-h">
+          <div class="mb-3 flex items-center justify-between">
+            <h2 id="recent-h" class="!mb-0">Recent feedback</h2>
+            @if (s.recent.length) {
+              <a routerLink="/responses" class="text-theme-sm font-medium">See all</a>
+            }
+          </div>
+          @if (s.recent.length === 0) {
+            <div class="empty">
+              <app-icon name="responses" [size]="28" />
+              <strong class="text-gray-800 dark:text-white/90">No responses yet</strong>
+              <p class="m-0">Share your QR code and they will show up here.</p>
+            </div>
+          } @else {
+            <ul class="recent m-0 list-none p-0">
+              @for (r of s.recent; track r.id) {
+                <li
+                  class="flex gap-3 border-t border-gray-100 py-3 first:border-t-0 dark:border-gray-800"
+                >
+                  <span
+                    class="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-sm font-semibold"
+                    [class]="
+                      r.rating !== null && r.rating <= 2
+                        ? 'bg-warning-50 text-warning-700 dark:bg-warning-500/15 dark:text-warning-400'
+                        : 'bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-400'
+                    "
+                  >
+                    {{ r.rating ?? '–' }}
+                  </span>
+                  <span class="flex min-w-0 flex-col">
+                    <strong class="truncate text-theme-sm text-gray-900 dark:text-white/90">
+                      {{
+                        r.contact
+                          ? r.contact.fullName || r.contact.email || r.contact.phone
+                          : 'Anonymous'
+                      }}
+                    </strong>
+                    <span class="text-theme-sm text-gray-600 dark:text-gray-300">{{
+                      r.preview ?? 'No written comment'
+                    }}</span>
+                    <small class="text-gray-400">{{ r.submittedAt | date: 'medium' }}</small>
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+          <p
+            class="note muted mt-4 mb-0 border-t border-gray-100 pt-3 text-theme-xs dark:border-gray-800"
+          >
+            Ratings come from your questionnaire. Google review counts and ratings are not connected
+            yet and are not shown here.
+          </p>
+        </section>
+
+        <section class="card relative !mb-0 overflow-hidden" aria-labelledby="setup-h">
+          <div class="glow top-[-3rem] right-[-3rem] size-48 bg-brand-500/20"></div>
+          <h2 id="setup-h">Your feedback link</h2>
+          <p class="muted mt-0 mb-4">
+            {{ b.name }} is live. Customers can open your feedback form from your QR code or link.
+          </p>
+          @if (qr(); as q) {
+            <div class="flex flex-wrap gap-2">
+              <input
+                type="text"
+                class="input min-w-0 basis-full"
+                readonly
+                [value]="q.publicUrl"
+                aria-label="Public feedback link"
+              />
+              <button type="button" class="btn secondary" (click)="copy()">
+                <app-icon [name]="copied() ? 'check' : 'copy'" [size]="16" />
+                {{ copied() ? 'Copied' : 'Copy link' }}
+              </button>
+            </div>
+            @if (copyFailed()) {
+              <p class="alert mt-3 mb-0" role="alert">
+                Copy was blocked by the browser. Select the link and copy it manually.
+              </p>
+            }
+            <div class="mt-4 flex flex-wrap gap-2">
+              <a class="btn secondary" routerLink="/qr"
+                ><app-icon name="download" [size]="16" /> Download QR</a
+              >
+              <a class="btn secondary" [href]="q.publicUrl" target="_blank" rel="noopener">
+                <app-icon name="external" [size]="16" /> Open form
+              </a>
+            </div>
+          } @else {
+            <a class="btn secondary" routerLink="/qr">Manage your feedback link</a>
+          }
+        </section>
+      </div>
+    } @else if (refreshing()) {
+      <div
+        class="grid grid-cols-2 gap-4 xl:grid-cols-4"
+        role="status"
+        aria-label="Loading feedback statistics"
+      >
+        @for (i of [1, 2, 3, 4]; track i) {
+          <div class="skeleton h-32 !rounded-2xl"></div>
+        }
+      </div>
+    }
+  }
+</main>

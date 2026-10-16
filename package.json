@@ -1,0 +1,25 @@
+{
+  "name": "godigitalvantage",
+  "private": true,
+  "scripts": {
+    "api:dev": "npm --prefix apps/api run dev",
+    "web:dev": "npm --prefix apps/web start",
+    "build": "npm --prefix apps/api run build && npm --prefix apps/web run build",
+    "test": "npm --prefix apps/api test && npm --prefix apps/web test -- --watch=false",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "web:lan": "npm --prefix apps/web run start:lan"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "angular-eslint": "^22.6.0",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.71.2"
+  }
+}

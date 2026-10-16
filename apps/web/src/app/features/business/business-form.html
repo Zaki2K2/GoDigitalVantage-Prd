@@ -1,0 +1,126 @@
+@if (error(); as message) {
+  <div class="alert" role="alert">{{ message }}</div>
+}
+
+<form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <div class="grid gap-x-5 sm:grid-cols-2">
+    <div class="field">
+      <label for="name">Business name</label>
+      <input
+        id="name"
+        type="text"
+        formControlName="name"
+        autocomplete="organization"
+        [class.invalid]="invalid('name')"
+        [attr.aria-invalid]="invalid('name')"
+      />
+      @if (invalid('name')) {
+        <span class="error">Enter your business name (up to 120 characters).</span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="category">Category</label>
+      <input
+        id="category"
+        type="text"
+        formControlName="category"
+        list="category-options"
+        [class.invalid]="invalid('category')"
+        [attr.aria-invalid]="invalid('category')"
+      />
+      <datalist id="category-options">
+        @for (c of categories; track c) {
+          <option [value]="c"></option>
+        }
+      </datalist>
+      @if (invalid('category')) {
+        <span class="error">Choose or enter a category.</span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="email">Business email (optional)</label>
+      <input
+        id="email"
+        type="email"
+        formControlName="email"
+        autocomplete="email"
+        [class.invalid]="invalid('email')"
+        [attr.aria-invalid]="invalid('email')"
+      />
+      @if (invalid('email')) {
+        <span class="error">Enter a valid email address.</span>
+      }
+    </div>
+
+    <div class="field">
+      <label for="phone">Phone (optional)</label>
+      <input
+        id="phone"
+        type="tel"
+        formControlName="phone"
+        autocomplete="tel"
+        [class.invalid]="invalid('phone')"
+        [attr.aria-invalid]="invalid('phone')"
+      />
+      @if (invalid('phone')) {
+        <span class="error">Enter a valid phone number, e.g. +1 555 123 4567.</span>
+      }
+    </div>
+
+    <div class="field sm:col-span-2">
+      <label for="address">Address (optional)</label>
+      <input
+        id="address"
+        type="text"
+        formControlName="address"
+        autocomplete="street-address"
+        [class.invalid]="invalid('address')"
+      />
+    </div>
+
+    <div class="field">
+      <label for="timezone">Time zone</label>
+      <input
+        id="timezone"
+        type="text"
+        formControlName="timezone"
+        list="timezone-options"
+        [class.invalid]="invalid('timezone')"
+        [attr.aria-invalid]="invalid('timezone')"
+      />
+      <datalist id="timezone-options">
+        @for (z of zones; track z) {
+          <option [value]="z"></option>
+        }
+      </datalist>
+      @if (invalid('timezone')) {
+        <span class="error">Time zone is required.</span>
+      }
+    </div>
+
+    <div class="field sm:col-span-2">
+      <label for="googleReviewUrl">Google review link (optional)</label>
+      <input
+        id="googleReviewUrl"
+        type="url"
+        formControlName="googleReviewUrl"
+        placeholder="https://g.page/r/…"
+        [class.invalid]="invalid('googleReviewUrl')"
+        [attr.aria-invalid]="invalid('googleReviewUrl')"
+      />
+      <span class="hint">Shown to every customer after feedback. You can add it later.</span>
+      @if (invalid('googleReviewUrl')) {
+        <span class="error">Enter a full https:// link.</span>
+      }
+    </div>
+  </div>
+
+  <div class="actions">
+    <ng-content />
+    <button class="btn" type="submit" [disabled]="saving()">
+      {{ saving() ? 'Saving…' : submitLabel() }}
+    </button>
+  </div>
+</form>

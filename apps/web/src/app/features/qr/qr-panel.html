@@ -1,0 +1,114 @@
+<section>
+  @if (loading()) {
+    <div class="card grid gap-6 md:grid-cols-[17rem_1fr]" aria-busy="true">
+      <div class="skeleton aspect-square w-full max-w-64"></div>
+      <div>
+        <div class="skeleton mb-3 h-5 w-1/2"></div>
+        <div class="skeleton mb-3 h-11 w-full"></div>
+        <div class="skeleton h-10 w-2/3"></div>
+      </div>
+      <span class="sr-only">Loading QR code…</span>
+    </div>
+  } @else if (error(); as message) {
+    <div class="alert" role="alert">
+      <app-icon name="alert" [size]="18" /><span>{{ message }}</span>
+    </div>
+    <button type="button" class="btn secondary" (click)="load()">
+      <app-icon name="refresh" [size]="16" /> Try again
+    </button>
+  } @else if (info(); as qr) {
+    @if (isLoopback(qr.publicUrl)) {
+      <div class="notice" role="status">
+        <strong>Phone scanning needs a LAN address.</strong> This QR points to this computer only.
+        Set <code>PUBLIC_APP_BASE_URL</code> in the API environment to your computer's Wi-Fi
+        address, for example <code>http://192.168.1.10:4200</code>, restart the API, and refresh
+        this page.
+      </div>
+    }
+    @if (!qr.published) {
+      <div class="notice" role="status">
+        Your questionnaire is not published yet, so customers who scan this code will see an
+        unavailable page. Publish it first.
+      </div>
+    }
+    <div class="card relative grid items-center gap-8 overflow-hidden md:grid-cols-[17rem_1fr]">
+      <div class="glow top-[-4rem] left-[-3rem] size-64 bg-brand-500/20"></div>
+      <div class="glow right-[-4rem] bottom-[-5rem] size-64 bg-blue-light-500/15"></div>
+
+      <div class="mx-auto w-full max-w-64">
+        <div
+          class="rounded-3xl bg-gradient-to-br from-brand-400 to-blue-light-500 p-[3px] shadow-glow"
+        >
+          <div class="rounded-[1.35rem] bg-white p-4">
+            <img
+              class="code block aspect-square w-full"
+              [src]="base() + '.svg'"
+              [alt]="'QR code linking to ' + qr.publicUrl"
+              width="240"
+              height="240"
+            />
+          </div>
+        </div>
+        <p class="muted mt-3 mb-0 text-center">Scan with any phone camera</p>
+      </div>
+
+      <div class="min-w-0">
+        <label
+          for="qr-url"
+          class="mb-1.5 block text-theme-sm font-medium text-gray-700 dark:text-gray-300"
+        >
+          Your permanent feedback link
+        </label>
+        <div class="flex flex-wrap gap-2">
+          <input
+            id="qr-url"
+            type="text"
+            class="input min-w-0 flex-1"
+            readonly
+            [value]="qr.publicUrl"
+          />
+          <button type="button" class="btn secondary" (click)="copy()">
+            <app-icon [name]="copied() === 'ok' ? 'check' : 'copy'" [size]="16" /> Copy link
+          </button>
+        </div>
+        @if (copied() === 'ok') {
+          <p
+            class="hint mt-2 mb-0 text-theme-sm font-medium text-brand-700 dark:text-brand-400"
+            role="status"
+          >
+            Link copied.
+          </p>
+        } @else if (copied() === 'failed') {
+          <p class="hint mt-2 mb-0 text-theme-sm text-error-600" role="status">
+            Copy failed. Select the link and copy it manually.
+          </p>
+        }
+        <p class="hint muted mt-3 mb-6">
+          This link never changes, even when you edit or republish your questionnaire. The QR code
+          contains only this link.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <a class="btn" [href]="base() + '.png?download=1'" download>
+            <app-icon name="download" [size]="16" /> Download PNG
+          </a>
+          <a class="btn secondary" [href]="base() + '.svg?download=1'" download>
+            <app-icon name="download" [size]="16" /> Download SVG
+          </a>
+          <button type="button" class="btn secondary" (click)="print()">
+            <app-icon name="printer" [size]="16" /> Print
+          </button>
+          <a class="btn ghost" [href]="qr.publicUrl" target="_blank" rel="noopener">
+            Open page <app-icon name="external" [size]="14" />
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="print-sheet" aria-hidden="true">
+      <h1>{{ businessName() }}</h1>
+      <p>Scan to share your feedback</p>
+      <img [src]="base() + '.png'" alt="" width="360" height="360" />
+      <p class="url">{{ qr.publicUrl }}</p>
+    </div>
+  }
+</section>

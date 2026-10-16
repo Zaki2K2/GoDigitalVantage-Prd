@@ -1,0 +1,183 @@
+<section class="@container" aria-busy="{{ loading() }}">
+  @if (loading()) {
+    <div class="card" aria-live="polite">
+      <div class="skeleton mb-4 h-6 w-1/3"></div>
+      <div class="skeleton mb-3 h-11 w-full"></div>
+      <div class="skeleton mb-3 h-11 w-full"></div>
+      <div class="skeleton h-24 w-full"></div>
+      <span class="sr-only">Loading questionnaire…</span>
+    </div>
+  } @else if (loadError(); as message) {
+    <div class="alert" role="alert">
+      <app-icon name="alert" [size]="18" /><span>{{ message }}</span>
+    </div>
+    <button type="button" class="btn secondary" (click)="load()">
+      <app-icon name="refresh" [size]="16" /> Try again
+    </button>
+  } @else {
+    <div class="mb-4 flex flex-wrap items-center gap-2" role="status">
+      @if (view()?.publishedVersion) {
+        <span class="badge success">
+          <span class="size-1.5 rounded-full bg-success-500"></span>Live: version
+          {{ view()?.publishedVersion }}
+        </span>
+      } @else {
+        <span class="badge">Not published yet</span>
+      }
+      @if (dirty()) {
+        <span class="badge warn">Unsaved changes</span>
+      } @else if (view()?.hasUnpublishedChanges) {
+        <span class="badge warn">Draft not published</span>
+      }
+    </div>
+
+    @if (!canEdit()) {
+      <p class="notice">Only the business owner can edit the questionnaire.</p>
+    }
+    @if (error(); as message) {
+      <div class="alert" role="alert">
+        <app-icon name="alert" [size]="18" />
+        <span class="flex-1">{{ message }}</span>
+        @if (conflict()) {
+          <button type="button" class="btn secondary sm reload" (click)="load()">Reload</button>
+        }
+      </div>
+    }
+    @if (success(); as message) {
+      <div class="alert success" role="status">
+        <app-icon name="check-circle" [size]="18" /><span>{{ message }}</span>
+      </div>
+    }
+    @if (generalIssues().length > 0) {
+      <div class="alert" role="alert">
+        <ul class="m-0 pl-4">
+          @for (m of generalIssues(); track m) {
+            <li>{{ m }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    @if (previewing()) {
+      <div class="card animate-fade-up">
+        <p class="notice">Preview of your unsaved draft. This is how customers will see it.</p>
+        <app-questionnaire-form-view
+          prefix="preview"
+          [title]="preview().title"
+          [description]="preview().description"
+          [questions]="preview().questions"
+        />
+        <div class="actions">
+          <button type="button" class="btn secondary" (click)="togglePreview()">
+            Back to editing
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="grid items-start gap-6 @4xl:grid-cols-[minmax(0,1fr)_24rem]">
+        <form [formGroup]="form" (ngSubmit)="saveDraft()" novalidate>
+          <div class="card">
+            <div class="field">
+              <label for="qn-title">Form title</label>
+              <input id="qn-title" type="text" formControlName="title" />
+              @if (form.controls.title.invalid && form.controls.title.touched) {
+                <span class="error">A title is required (up to 120 characters).</span>
+              }
+            </div>
+            <div class="field !mb-0">
+              <label for="qn-desc">Introduction (optional)</label>
+              <input id="qn-desc" type="text" formControlName="description" />
+            </div>
+          </div>
+
+          @if (form.controls.questions.length === 0) {
+            <div class="card empty border-dashed">
+              <app-icon name="form" [size]="28" />
+              <p class="m-0">No questions yet. Add your first question below.</p>
+            </div>
+          }
+          @for (g of form.controls.questions.controls; track g; let i = $index) {
+            <app-question-editor
+              [group]="g"
+              [index]="i"
+              [count]="form.controls.questions.length"
+              [issues]="issuesFor(g.controls.id.value)"
+              [disabled]="!canEdit()"
+              (typeChange)="changeType(i, $event)"
+              (move)="moveQuestion(i, $event)"
+              (remove)="removeQuestion(i)"
+            />
+          }
+
+          @if (canEdit()) {
+            <div
+              class="mb-6 rounded-2xl border border-dashed border-gray-300 p-4 dark:border-gray-700"
+            >
+              <p
+                id="add-label"
+                class="mt-0 mb-3 text-theme-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Add a question
+              </p>
+              <div
+                class="add-buttons flex flex-wrap gap-2"
+                role="group"
+                aria-labelledby="add-label"
+              >
+                @for (t of types; track t) {
+                  <button type="button" class="btn secondary sm" (click)="addQuestion(t)">
+                    + {{ typeLabels[t] }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          <div
+            class="sticky bottom-3 z-10 flex flex-wrap items-center gap-2 rounded-2xl border border-gray-200 bg-white/90 p-3 shadow-theme-lg backdrop-blur-xl dark:border-gray-800 dark:bg-gray-900/90"
+          >
+            <button type="button" class="btn secondary @4xl:hidden" (click)="togglePreview()">
+              <app-icon name="eye" [size]="16" /> Preview
+            </button>
+            <button
+              type="button"
+              class="btn secondary hidden @4xl:inline-flex"
+              (click)="togglePreview()"
+            >
+              <app-icon name="eye" [size]="16" /> Full preview
+            </button>
+            @if (canEdit()) {
+              <span class="flex-1"></span>
+              <button type="submit" class="btn secondary" [disabled]="busy() || !dirty()">
+                {{ saving() ? 'Saving…' : 'Save draft' }}
+              </button>
+              <button type="button" class="btn" [disabled]="!canPublish()" (click)="publish()">
+                <app-icon name="zap" [size]="16" />
+                {{ publishing() ? 'Publishing…' : 'Publish' }}
+              </button>
+            }
+          </div>
+        </form>
+
+        <aside class="hidden @4xl:sticky @4xl:top-24 @4xl:block" aria-label="Live preview">
+          <div class="card glass !mb-0">
+            <div class="mb-3 flex items-center justify-between">
+              <span class="eyebrow">Live preview</span>
+              <span class="badge info">Updates as you type</span>
+            </div>
+            <div
+              class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950"
+            >
+              <app-questionnaire-form-view
+                prefix="live"
+                [title]="preview().title"
+                [description]="preview().description"
+                [questions]="preview().questions"
+              />
+            </div>
+          </div>
+        </aside>
+      </div>
+    }
+  }
+</section>

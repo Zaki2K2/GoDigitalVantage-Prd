@@ -1,0 +1,208 @@
+<a
+  href="#content"
+  class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100000] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-gray-900 focus:shadow-theme-lg"
+>
+  Skip to content
+</a>
+
+@if (drawer()) {
+  <div
+    class="fixed inset-0 z-40 animate-fade-in bg-gray-950/60 backdrop-blur-sm xl:hidden"
+    (click)="drawer.set(false)"
+    aria-hidden="true"
+  ></div>
+}
+
+<aside
+  id="sidebar"
+  aria-label="Sidebar"
+  class="fixed inset-y-0 left-0 z-50 flex w-[290px] flex-col border-r border-gray-200 bg-white px-4 pt-5 pb-4 transition-all duration-300 ease-in-out dark:border-gray-800 dark:bg-gray-900"
+  [class.-translate-x-full]="!drawer()"
+  [class.xl:translate-x-0]="true"
+  [class.xl:w-[88px]]="!expanded()"
+  [class.xl:px-3]="!expanded()"
+>
+  <div class="flex h-10 items-center px-2" [class.xl:justify-center]="!expanded()">
+    <a routerLink="/" aria-label="GoDigitalVantage home" class="no-underline hover:no-underline">
+      <app-brand-logo [class.xl:hidden]="!expanded()" />
+      @if (!expanded()) {
+        <app-brand-logo [compact]="true" class="hidden xl:inline-flex" />
+      }
+    </a>
+  </div>
+
+  <nav aria-label="Main" class="no-scrollbar mt-8 flex-1 overflow-y-auto">
+    @for (group of groups; track group.title) {
+      <p
+        class="mb-2 px-3 text-theme-xs font-medium tracking-wider text-gray-400 uppercase"
+        [class.xl:hidden]="!expanded()"
+      >
+        {{ group.title }}
+      </p>
+      <ul class="mb-6 flex flex-col gap-1 p-0">
+        @for (item of group.items; track item.path) {
+          <li class="list-none">
+            <a
+              [routerLink]="item.path"
+              routerLinkActive="menu-item-active"
+              [routerLinkActiveOptions]="{ exact: !!item.exact }"
+              #rla="routerLinkActive"
+              class="menu-item"
+              [class.menu-item-inactive]="!rla.isActive"
+              [class.xl:justify-center]="!expanded()"
+              [attr.aria-label]="item.label"
+              [attr.title]="expanded() ? null : item.label"
+            >
+              <app-icon [name]="item.icon" [size]="22" />
+              <span [class.xl:hidden]="!expanded()">{{ item.label }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </nav>
+
+  @if (business(); as b) {
+    <div
+      class="mt-4 rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-blue-light-50 p-4 dark:border-brand-500/20 dark:from-brand-500/10 dark:to-blue-light-500/10"
+      [class.xl:hidden]="!expanded()"
+    >
+      <p
+        class="mb-1 flex items-center gap-1.5 text-theme-xs font-semibold text-brand-700 dark:text-brand-400"
+      >
+        <app-icon name="sparkles" [size]="14" /> Your public form
+      </p>
+      <p class="mb-3 text-theme-xs text-gray-600 dark:text-gray-400">
+        What customers see when they scan your QR code.
+      </p>
+      <a
+        [href]="'/r/' + b.slug"
+        target="_blank"
+        rel="noopener"
+        class="btn secondary sm block w-full"
+      >
+        Open form <app-icon name="external" [size]="14" />
+      </a>
+    </div>
+  }
+</aside>
+
+<div
+  class="min-h-screen transition-all duration-300 ease-in-out"
+  [class.xl:pl-[290px]]="expanded()"
+  [class.xl:pl-[88px]]="!expanded()"
+>
+  <header
+    class="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-gray-200 bg-white/80 px-4 py-3 backdrop-blur-xl md:px-6 dark:border-gray-800 dark:bg-gray-900/80"
+  >
+    <div class="flex min-w-0 items-center gap-3">
+      <button
+        type="button"
+        class="icon-btn"
+        aria-controls="sidebar"
+        [attr.aria-expanded]="drawer() || expanded()"
+        aria-label="Toggle navigation"
+        (click)="toggleSidebar()"
+      >
+        <app-icon [name]="drawer() ? 'close' : 'menu'" />
+      </button>
+      @if (business(); as b) {
+        <div class="min-w-0">
+          @if (businessList().length > 1) {
+            <select
+              class="form-select form-select-sm"
+              aria-label="Select business"
+              [value]="b.id"
+              (change)="selectBusiness($event)"
+            >
+              @for (item of businessList(); track item.id) {
+                <option [value]="item.id">{{ item.name }}</option>
+              }
+            </select>
+          } @else {
+            <p class="m-0 truncate text-theme-sm font-semibold text-gray-900 dark:text-white/90">
+              {{ b.name }}
+            </p>
+          }
+          <p class="m-0 truncate text-theme-xs text-gray-500 dark:text-gray-400">
+            {{ b.category }}
+          </p>
+        </div>
+      }
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="icon-btn"
+        (click)="theme.toggle()"
+        [attr.aria-label]="
+          theme.theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+        "
+        [attr.aria-pressed]="theme.theme() === 'dark'"
+      >
+        <app-icon [name]="theme.theme() === 'dark' ? 'sun' : 'moon'" />
+      </button>
+
+      <div class="relative" data-user-menu>
+        <button
+          type="button"
+          class="flex items-center gap-2 rounded-lg p-1 pr-2 transition hover:bg-gray-100 dark:hover:bg-white/5"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="menu()"
+          (click)="menu.set(!menu())"
+        >
+          <span
+            class="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-blue-light-500 text-theme-sm font-semibold text-white"
+            aria-hidden="true"
+          >
+            {{ initials() }}
+          </span>
+          <span
+            class="hidden max-w-32 truncate text-theme-sm font-medium text-gray-700 sm:block dark:text-gray-300"
+          >
+            {{ user()?.fullName }}
+          </span>
+          <app-icon name="chevron-down" [size]="16" />
+        </button>
+        @if (menu()) {
+          <div
+            role="menu"
+            class="absolute right-0 mt-2 w-64 animate-pop rounded-2xl border border-gray-200 bg-white p-2 shadow-theme-lg dark:border-gray-800 dark:bg-gray-900"
+          >
+            <div class="border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+              <p class="m-0 truncate text-theme-sm font-semibold text-gray-900 dark:text-white/90">
+                {{ user()?.fullName }}
+              </p>
+              <p class="m-0 truncate text-theme-xs text-gray-500 dark:text-gray-400">
+                {{ user()?.email }}
+              </p>
+            </div>
+            <a routerLink="/business" role="menuitem" class="menu-item menu-item-inactive mt-1">
+              <app-icon name="business" /> Business profile
+            </a>
+            <a routerLink="/settings" role="menuitem" class="menu-item menu-item-inactive"
+              ><app-icon name="settings" /> Settings</a
+            >
+            <button
+              type="button"
+              role="menuitem"
+              class="menu-item menu-item-inactive"
+              (click)="signOut()"
+              [disabled]="signingOut()"
+            >
+              <app-icon name="logout" /> {{ signingOut() ? 'Signing out…' : 'Sign out' }}
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  </header>
+
+  <div id="content" tabindex="-1" class="p-4 outline-none md:p-6 2xl:p-8">
+    @if (signOutError()) {
+      <div class="error mb-4" role="alert">{{ signOutError() }}</div>
+    }
+    <router-outlet />
+  </div>
+</div>

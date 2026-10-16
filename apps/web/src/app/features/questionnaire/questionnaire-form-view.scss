@@ -1,0 +1,74 @@
+h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+}
+
+.desc {
+  margin: 0 0 1rem;
+  color: #5b6475;
+}
+
+.item {
+  margin-bottom: 1.25rem;
+}
+
+label,
+legend {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.help {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  color: #5b6475;
+}
+
+.req {
+  color: #c62828;
+}
+
+input[type='text'],
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  border: 1px solid #c3cad6;
+  border-radius: 0.5rem;
+  background: #f7f8fa;
+}
+
+.choice {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+  font-weight: 400;
+}
+
+.stars {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.star {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid #c3cad6;
+  border-radius: 50%;
+  background: #f7f8fa;
+  color: #5b6475;
+}

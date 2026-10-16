@@ -1,0 +1,117 @@
+<main class="page max-w-4xl">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Settings</p>
+      <h1>Business profile</h1>
+      <p class="sub">The details customers and your team see.</p>
+    </div>
+    @if (business(); as b) {
+      @if (b.role === 'owner' && !editing()) {
+        <button type="button" class="btn" (click)="startEdit()">
+          <app-icon name="edit" [size]="16" /> Edit profile
+        </button>
+      }
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="card" aria-busy="true">
+      <div class="skeleton mb-4 h-6 w-1/3"></div>
+      <div class="skeleton mb-3 h-4 w-full"></div>
+      <div class="skeleton mb-3 h-4 w-5/6"></div>
+      <div class="skeleton h-4 w-2/3"></div>
+    </div>
+  } @else if (loadError(); as message) {
+    <div class="alert" role="alert">
+      <app-icon name="alert" [size]="18" /><span>{{ message }}</span>
+    </div>
+  } @else if (business(); as b) {
+    @if (saved()) {
+      <div class="alert success" role="status">
+        <app-icon name="check-circle" [size]="18" /><span>Changes saved.</span>
+      </div>
+    }
+
+    <section class="card relative overflow-hidden">
+      <div class="glow top-[-5rem] right-[-3rem] size-60 bg-brand-500/15"></div>
+      <div class="mb-6 flex items-center gap-4">
+        <span
+          class="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-blue-light-500 text-xl font-semibold text-white"
+          aria-hidden="true"
+        >
+          {{ b.name.charAt(0).toUpperCase() }}
+        </span>
+        <div class="min-w-0">
+          <h2 class="!mb-0.5 truncate">{{ b.name }}</h2>
+          <p class="m-0 flex flex-wrap items-center gap-2">
+            <span class="badge">{{ b.category }}</span>
+            <span
+              class="badge"
+              [class.success]="b.status === 'active'"
+              [class.warn]="b.status !== 'active'"
+            >
+              {{ b.status === 'active' ? 'Live' : b.status }}
+            </span>
+          </p>
+        </div>
+      </div>
+
+      @if (editing()) {
+        <app-business-form
+          [business]="b"
+          [saving]="saving()"
+          [error]="saveError()"
+          submitLabel="Save changes"
+          (submitted)="save($event)"
+        >
+          <button
+            type="button"
+            class="btn secondary"
+            [disabled]="saving()"
+            (click)="editing.set(false)"
+          >
+            Cancel
+          </button>
+        </app-business-form>
+      } @else {
+        <dl class="m-0 divide-y divide-gray-100 dark:divide-gray-800">
+          @for (row of rows(b); track row[0]) {
+            <div class="grid gap-1 py-3 sm:grid-cols-[12rem_1fr] sm:gap-4">
+              <dt class="text-theme-sm font-medium text-gray-500 dark:text-gray-400">
+                {{ row[0] }}
+              </dt>
+              <dd class="m-0 text-theme-sm break-words text-gray-900 dark:text-white/90">
+                {{ row[1] }}
+              </dd>
+            </div>
+          }
+        </dl>
+        @if (b.role !== 'owner') {
+          <p class="muted mt-4 mb-0">Only the business owner can edit these details.</p>
+        }
+      }
+    </section>
+
+    <section class="card">
+      <h2>Your feedback page</h2>
+      <p class="muted mt-0 mb-4">
+        This address is permanent so printed QR codes keep working. Manage the code on the
+        <a routerLink="/qr">QR code</a> page.
+      </p>
+      <div class="flex flex-wrap items-center gap-3">
+        <code
+          class="rounded-lg bg-gray-100 px-3 py-2 text-theme-sm break-all text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+          >/r/{{ b.slug }}</code
+        >
+        <a class="btn secondary sm" [href]="'/r/' + b.slug" target="_blank" rel="noopener">
+          Open page <app-icon name="external" [size]="14" />
+        </a>
+      </div>
+    </section>
+  } @else {
+    <div class="card empty">
+      <p class="m-0">You have not set up a business yet.</p>
+      <a class="btn" routerLink="/onboarding">Start setup</a>
+    </div>
+  }
+</main>
