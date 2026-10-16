@@ -36,12 +36,21 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     ({ createApp } = await import('./app.js'));
     ({ connectDb } = await import('./db.js'));
   } catch (err) {
-    console.error('Configuration error:', err instanceof Error ? err.message : err);
+    console.error('Startup error:', err instanceof Error ? `${err.name}: ${err.message}` : err);
+    // Names of invalid variables are safe to show (never values); other failures stay generic.
+    const fields = (err as { name?: string; fields?: unknown }).fields;
+    const isEnv = err instanceof Error && err.name === 'EnvError' && Array.isArray(fields);
     res.statusCode = 500;
     res.setHeader('content-type', 'application/json');
     res.end(
       JSON.stringify({
-        error: { code: 'MISCONFIGURED', message: 'Server configuration is invalid' },
+        error: isEnv
+          ? {
+              code: 'MISCONFIGURED',
+              message: 'Server configuration is invalid',
+              details: { invalidVariables: fields },
+            }
+          : { code: 'STARTUP_FAILED', message: 'Server failed to start' },
       }),
     );
     return;

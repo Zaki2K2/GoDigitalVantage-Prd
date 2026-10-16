@@ -28,7 +28,11 @@ describe('serverless startup with a missing environment variable', () => {
     const res = await request(handler).get('/api/v1/health');
     expect(res.status).toBe(500);
     expect(res.body).toEqual({
-      error: { code: 'MISCONFIGURED', message: 'Server configuration is invalid' },
+      error: {
+        code: 'MISCONFIGURED',
+        message: 'Server configuration is invalid',
+        details: { invalidVariables: ['PUBLIC_APP_BASE_URL'] },
+      },
     });
     expect(log.mock.calls.flat().join(' ')).toContain('PUBLIC_APP_BASE_URL');
     expect(exit).not.toHaveBeenCalled();

@@ -5,6 +5,7 @@ import { envSchema } from './env.schema';
 export class EnvError extends Error {
   constructor(readonly fields: string[]) {
     super(`Invalid environment: ${fields.join(', ')}`);
+    this.name = 'EnvError';
   }
 }
 
