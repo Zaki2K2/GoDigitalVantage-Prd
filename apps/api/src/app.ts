@@ -20,7 +20,13 @@ export function createApp() {
   if (env.TRUST_PROXY > 0) app.set('trust proxy', env.TRUST_PROXY);
   app.use(helmet());
   app.use(
-    cors({ origin: env.CORS_ORIGIN.split(',').map((origin) => origin.trim()), credentials: true }),
+    cors({
+      // Origins never carry a trailing slash, so tolerate one (and blanks) in the setting.
+      origin: env.CORS_ORIGIN.split(',')
+        .map((origin) => origin.trim().replace(/\/+$/, ''))
+        .filter(Boolean),
+      credentials: true,
+    }),
   );
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());

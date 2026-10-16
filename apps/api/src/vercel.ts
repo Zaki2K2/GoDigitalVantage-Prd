@@ -1,7 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Express } from 'express';
-import { createApp } from './app';
-import { connectDb } from './db';
 
 let app: Express | undefined;
 
@@ -30,6 +28,24 @@ function useExpressSemantics(req: IncomingMessage, res: ServerResponse): void {
  * `server.ts`.
  */
 export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  // Loaded lazily so a missing/invalid environment variable becomes a readable 500 (variable names
+  // go to the function logs) instead of a crash while the module initialises.
+  let createApp: typeof import('./app.js').createApp;
+  let connectDb: typeof import('./db.js').connectDb;
+  try {
+    ({ createApp } = await import('./app.js'));
+    ({ connectDb } = await import('./db.js'));
+  } catch (err) {
+    console.error('Configuration error:', err instanceof Error ? err.message : err);
+    res.statusCode = 500;
+    res.setHeader('content-type', 'application/json');
+    res.end(
+      JSON.stringify({
+        error: { code: 'MISCONFIGURED', message: 'Server configuration is invalid' },
+      }),
+    );
+    return;
+  }
   try {
     await connectDb();
   } catch (err) {
