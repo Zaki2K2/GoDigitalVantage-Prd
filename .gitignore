@@ -3,3 +3,6 @@ dist/
 .env
 .angular/
 *.log
+.env.*
+!.env.example
+!.env.production.example
