@@ -60,3 +60,9 @@ Restricted test-mode validation: full API suite 214/214 passed (17 files, `--tes
 ## Deployment readiness review
 
 43 targeted provider/reward tests, API typecheck and both production builds passed. Configured API host: go-digital-vantage-api-roan.vercel.app (frontend rewrite). Direct health recovered from 503 to 200; live shared webhook returns 403 CSRF_INVALID rather than the local signature-handler 401. Deployed revision/routing must be confirmed before approved email testing. No secrets/settings/deployments/emails changed. Checklist and two-email full-verification E2E plan: docs/resend-deployment-checklist.md.
+
+## QA audit (2026-10-19, partial)
+
+See [docs/qa/full-system-audit.md](../../docs/qa/full-system-audit.md). `BusinessApi.list()` now shares one request per user (3 s reuse, cleared on mutations); spec added and run (web 150/150; API 214/214; lint, prettier, build, typecheck pass; browser shows 1 request per load). Production API runs in iad1 while traffic enters at sin1 (no `regions` in `apps/api/vercel.json`); region change waits on the Atlas region. The earlier "webhook returns 403 CSRF_INVALID" note is stale: production returns 401 INVALID_WEBHOOK_SIGNATURE.
+
+Follow-up (2026-10-19): local verification recorded in the audit doc. Open: Atlas region and Vercel logs (503 root cause), production Super Admin/reward runtime checks, approved email test. Nothing pushed or deployed.
