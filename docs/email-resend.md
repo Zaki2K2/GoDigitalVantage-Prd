@@ -114,3 +114,13 @@ After custom-domain DNS verification, set `EMAIL_TEST_MODE=false` and retain the
 Provider restriction: [Vercel's Resend integration guide](https://vercel.com/academy/visual-workflow-builder-on-vercel/resend-plugin).
 
 Restricted test-mode validation: full API suite 214/214 passed (17 files, `--testTimeout=20000`); targeted email/reward suite 43/43. API typecheck, both production builds, lint and formatting passed. No real email submission, deployment, Vercel setting or secret change was performed.
+
+## Troubleshooting `EMAIL_NOT_CONFIGURED`
+
+The admin message "Instant Rewards email configuration is incomplete" / "Email not confirmed: EMAIL_NOT_CONFIGURED" means the reward was saved but a required API setting is missing. Checked in this order:
+
+1. `INSTANT_REWARDS_TOKEN_SECRET` (>= 32 chars). Optional in the env schema, so the API starts without it, but claim/verify links cannot be derived (`deriveToken`). Set once; never rotate casually (existing links stop working).
+2. `RESEND_API_KEY` and `RESEND_WEBHOOK_SECRET` (`sendResendEmail`).
+3. `PUBLIC_APP_BASE_URL` must be HTTPS in production.
+
+Other codes: `EMAIL_DISABLED` (`EMAIL_ENABLED` not `true`), `EMAIL_TEST_NOT_CONFIGURED` (`RESEND_TEST_EMAIL` missing), `EMAIL_TEST_RECIPIENT_BLOCKED` (recipient is not the test email), `EMAIL_SENDER_INVALID` (in test mode the sender must be exactly `onboarding@resend.dev`). After fixing the setting and redeploying, use "Retry delivery" on the reward. Do not recreate the reward.
