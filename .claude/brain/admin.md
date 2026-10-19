@@ -71,3 +71,9 @@ Administrative ObjectIds and authenticated subjects are canonicalized to lowerca
 ## Instant Rewards permission
 
 Super Admin manages `/admin/instant-rewards` and delegates `instant_rewards:manage` from user details via the existing confirmation/audit flow. Delegated active users use `/rewards-admin` and `/api/v1/instant-rewards/admin`; this grants no other `/api/v1/admin` or tenant API access. Grant/removal revokes existing sessions; self-changes are prohibited. Reward recipients use `/my-rewards` without onboarding and must prove ownership via emailed tokens. Lifecycle and successful-action audit are atomic; see the Instant Rewards specification and operations guide.
+
+## Live bootstrap verification (2026-10-19)
+
+Created the requested active Super Admin account through the live application and granted SUPER_ADMIN with the existing audited operator command. Live frontend login and /api/v1/admin/system both returned 200; grant audit completed; all verification refresh sessions were confirmed revoked after logout. Do not store bootstrap passwords in documentation.
+
+Important environment discrepancy: the live API currently uses MongoDB database `test`, while the local `.env.production` connection selects `godigitalvantage`. Exact live registration identity was matched before the real grant. The initial unused bootstrap account in `godigitalvantage` was disabled, demoted and had sessions revoked with an operator correction audit; no existing tenant data was removed. Confirm actual deployed database before future operator actions; do not rely on the env filename. The live system endpoint reports environment `development`; no Vercel configuration, secrets or deployment was changed during account creation.
