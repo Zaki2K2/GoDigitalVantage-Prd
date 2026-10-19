@@ -1,5 +1,11 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, adminGuard, businessUserGuard } from './core/auth/auth.guard';
+import {
+  authGuard,
+  guestGuard,
+  adminGuard,
+  instantRewardAdminGuard,
+  businessUserGuard,
+} from './core/auth/auth.guard';
 import { onboardedGuard } from './core/business/onboarded.guard';
 
 export const routes: Routes = [
@@ -29,6 +35,41 @@ export const routes: Routes = [
     loadComponent: () => import('./features/public/reward-link.page').then((m) => m.RewardLinkPage),
   },
   {
+    path: 'instant-reward',
+    loadComponent: () =>
+      import('./features/instant-rewards/instant-reward-landing.page').then(
+        (m) => m.InstantRewardLandingPage,
+      ),
+  },
+  {
+    path: 'my-rewards',
+    canActivate: [authGuard],
+    data: { personal: true },
+    loadComponent: () => import('./features/shell/app-shell').then((m) => m.AppShell),
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/instant-rewards/my-rewards.page').then((m) => m.MyRewardsPage),
+      },
+    ],
+  },
+  {
+    path: 'rewards-admin',
+    canActivate: [authGuard, instantRewardAdminGuard],
+    data: { personal: true, rewardAdmin: true },
+    loadComponent: () => import('./features/shell/app-shell').then((m) => m.AppShell),
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/instant-rewards/instant-rewards-admin.page').then(
+            (m) => m.InstantRewardsAdminPage,
+          ),
+      },
+    ],
+  },
+  {
     path: 'onboarding',
     canActivate: [authGuard, businessUserGuard],
     loadChildren: () =>
@@ -41,6 +82,13 @@ export const routes: Routes = [
     loadComponent: () => import('./features/shell/app-shell').then((m) => m.AppShell),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+      {
+        path: 'instant-rewards',
+        loadComponent: () =>
+          import('./features/instant-rewards/instant-rewards-admin.page').then(
+            (m) => m.InstantRewardsAdminPage,
+          ),
+      },
       {
         path: ':section/:id',
         loadComponent: () => import('./features/admin/admin.page').then((m) => m.AdminPage),

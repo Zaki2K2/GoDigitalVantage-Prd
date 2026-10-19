@@ -21,3 +21,9 @@ API dirs under `apps/api/src/modules/`, web dirs under `apps/web/src/app/feature
 | M-AUDIT | audit_logs | `shared/audit` | M-BIZ | – | pending |
 
 - M-ADMIN implemented: explicit platform authorization, separate admin data scope, audited moderation and safe inspection. Full map: [admin](admin.md).
+
+| M-INSTANT-REWARDS | Individual emailed reward entitlements, verification, atomic claim, lifecycle/audit | `instant-rewards` / `instant-rewards` | M-AUTH, M-ADMIN | [Specification](../../docs/specs/instant-rewards.md) | implemented; verified sender/webhook needed for live delivery |
+
+## Shared email provider (2026-10-19)
+
+M-EMAIL: modules/email; shared Resend transport/templates/delivery receipts; used by M-INSTANT-REWARDS. Sending remains disabled pending domain/secrets and approved deployment.

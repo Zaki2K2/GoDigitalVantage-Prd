@@ -16,7 +16,7 @@ export const resources = {
   },
   users: {
     collection: 'users',
-    fields: 'fullName emailLowercase status platformRole createdAt updatedAt',
+    fields: 'fullName emailLowercase status platformRole permissions createdAt updatedAt',
     search: ['fullName', 'emailLowercase'],
     date: 'createdAt',
   },

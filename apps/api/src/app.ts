@@ -1,3 +1,8 @@
+import { InstantRewardsService } from './modules/instant-rewards/instant-reward.service';
+import {
+  createInstantRewardRouter,
+  createInstantRewardWebhook,
+} from './modules/instant-rewards/instant-reward.routes';
 import { createAdminRouter } from './modules/admin/admin.routes';
 import express from 'express';
 import helmet from 'helmet';
@@ -15,7 +20,7 @@ import { createQrRouter } from './modules/qr/qr.routes';
 import { createQuestionnaireRouter } from './modules/questionnaires/questionnaire.routes';
 import { healthRouter } from './modules/health/health.routes';
 
-export function createApp() {
+export function createApp(rewards = new InstantRewardsService()) {
   const app = express();
   app.disable('x-powered-by');
   if (env.TRUST_PROXY > 0) app.set('trust proxy', env.TRUST_PROXY);
@@ -29,6 +34,7 @@ export function createApp() {
       credentials: true,
     }),
   );
+  app.use(createInstantRewardWebhook(rewards));
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
@@ -38,6 +44,7 @@ export function createApp() {
     '/api/v1',
     csrfProtection,
     createAuthRouter(),
+    createInstantRewardRouter(rewards),
     createAdminRouter(),
     createBusinessRouter(),
     createQuestionnaireRouter(),

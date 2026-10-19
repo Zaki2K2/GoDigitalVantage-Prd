@@ -9,6 +9,7 @@ export interface AuthUser {
   email: string;
   status: string;
   platformRole?: 'USER' | 'SUPER_ADMIN';
+  permissions?: string[];
 }
 
 interface UserResponse {

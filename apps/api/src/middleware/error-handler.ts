@@ -23,6 +23,10 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
       .json({ error: { code: err.code, message: err.message, details: err.details } });
     return;
   }
+  if (err?.type === 'entity.parse.failed') {
+    res.status(400).json({ error: { code: 'INVALID_JSON', message: 'Invalid JSON request' } });
+    return;
+  }
   if (err?.type === 'entity.too.large') {
     res.status(413).json({ error: { code: 'PAYLOAD_TOO_LARGE', message: 'Payload too large' } });
     return;

@@ -21,6 +21,15 @@ export function createAdminRouter() {
   const router = Router();
   router.use('/admin', requireAuth, requireSuperAdmin);
   const id = (value: unknown) => idSchema.parse(value);
+  router.post('/admin/users/:id/instant-reward-access', async (req, res) => {
+    const body = z
+      .object({ enabled: z.boolean(), confirm: z.literal(true) })
+      .strict()
+      .parse(req.body);
+    res.json({
+      data: await actions.instantRewardAccess(req.auth!.userId, id(req.params['id']), body.enabled),
+    });
+  });
   router.get('/admin/dashboard', async (_req, res) => {
     const count = (collection: string, filter: Record<string, unknown> = {}) =>
       mongoose.connection.collection(collection).countDocuments(filter);

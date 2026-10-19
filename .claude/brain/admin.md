@@ -67,3 +67,7 @@ UI actions are available on user lists/details and both business-member and user
 Administrative ObjectIds and authenticated subjects are canonicalized to lowercase, so alternate-case IDs cannot bypass self-protection or create separate lock scopes for one business. Regression tests cover case variants, real login/access/refresh lifecycles, CSRF on POST/PATCH/DELETE, cross-tenant preservation and concurrent owner/admin changes.
 
 - Dashboard presentation: AdminDashboard receives existing API metrics and rating, with four primary totals, business-health progress, a rating/empty panel, contextual moderation links, grouped supporting metrics and operational shortcuts. It uses the existing design system and contains no fabricated trend data.
+
+## Instant Rewards permission
+
+Super Admin manages `/admin/instant-rewards` and delegates `instant_rewards:manage` from user details via the existing confirmation/audit flow. Delegated active users use `/rewards-admin` and `/api/v1/instant-rewards/admin`; this grants no other `/api/v1/admin` or tenant API access. Grant/removal revokes existing sessions; self-changes are prohibited. Reward recipients use `/my-rewards` without onboarding and must prove ownership via emailed tokens. Lifecycle and successful-action audit are atomic; see the Instant Rewards specification and operations guide.

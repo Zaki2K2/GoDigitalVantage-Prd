@@ -1,0 +1,400 @@
+<main class="page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Admin / Rewards</p>
+      <h1>Instant Rewards</h1>
+      <p class="sub">Issue and manage individual rewards securely.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button class="btn secondary sm" [disabled]="loading()" (click)="load()">
+        <app-icon name="refresh" [size]="15" /> Refresh</button
+      ><button class="btn" (click)="newReward()">Create Instant Reward</button>
+    </div>
+  </header>
+  @if (error()) {
+    <div class="alert mb-4" role="alert">{{ error() }}</div>
+  }
+  @if (notice()) {
+    <div class="alert mb-4" role="status">{{ notice() }}</div>
+  }
+  @if (selected(); as r) {
+    <button class="btn secondary sm mb-4" (click)="selected.set(null)">Back to rewards</button
+    ><app-instant-reward-details [reward]="r" />
+    <div class="card mb-4 flex flex-wrap gap-2">
+      @for (action of r.allowedActions; track action) {
+        <button class="btn secondary sm" [disabled]="busy()" (click)="ask(action, r)">
+          {{ action === 'resend' ? 'Resend email' : action === 'send' ? 'Send email' : action }}
+        </button>
+      }
+      @if (r.delivery?.state === 'PENDING') {
+        <button class="btn secondary sm" [disabled]="busy()" (click)="retryPending(r)">
+          Retry pending delivery
+        </button>
+      }
+      @if (r.revokeReason) {
+        <p class="muted">Revoke reason: {{ r.revokeReason }}</p>
+      }
+    </div>
+    <section class="card">
+      <h2 class="mb-4">Audit history</h2>
+      @if (history(); as h) {
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b">
+                <th class="p-3">Event</th>
+                <th class="p-3">Actor</th>
+                <th class="p-3">Time</th>
+                <th class="p-3">Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (event of h.data; track event.id) {
+                <tr class="border-b border-gray-100 dark:border-gray-800">
+                  <td class="p-3">{{ event.action }}</td>
+                  <td class="p-3">
+                    {{ event.actorType
+                    }}<span class="muted block text-xs">{{ event.actorId }}</span>
+                  </td>
+                  <td class="p-3 whitespace-nowrap">{{ event.timestamp | date: 'medium' }}</td>
+                  <td class="p-3">
+                    {{
+                      event.metadata['code'] ||
+                        event.metadata['reason'] ||
+                        event.metadata['providerEvent'] ||
+                        ''
+                    }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <footer class="mt-4 flex justify-between">
+          <button
+            class="btn secondary sm"
+            [disabled]="h.pagination.page <= 1"
+            (click)="loadHistory(h.pagination.page - 1)"
+          >
+            Previous</button
+          ><span>{{ h.pagination.page }} / {{ h.pagination.totalPages }}</span
+          ><button
+            class="btn secondary sm"
+            [disabled]="h.pagination.page >= h.pagination.totalPages"
+            (click)="loadHistory(h.pagination.page + 1)"
+          >
+            Next
+          </button>
+        </footer>
+      }
+    </section>
+  } @else {
+    <div class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      @for (status of ['SENT', 'VERIFIED', 'CLAIMED', 'EXPIRED']; track status) {
+        <div class="card">
+          <p class="muted text-sm">{{ status }}</p>
+          <p class="mt-2 text-2xl font-semibold">{{ summary()[status] || 0 }}</p>
+        </div>
+      }
+    </div>
+    <form class="card mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" (ngSubmit)="load(true)">
+      <div class="field">
+        <label for="reward-search">User email or title</label
+        ><input
+          id="reward-search"
+          name="search"
+          [(ngModel)]="filters.search"
+          placeholder="Search rewards"
+        />
+      </div>
+      <div class="field">
+        <label for="reward-status">Status</label
+        ><select id="reward-status" name="status" [(ngModel)]="filters.status">
+          <option value="">All statuses</option>
+          @for (status of statuses; track status) {
+            <option [value]="status">{{ status }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label for="reward-type-filter">Reward type</label
+        ><select id="reward-type-filter" name="type" [(ngModel)]="filters.rewardType">
+          <option value="">All types</option>
+          @for (type of types; track type) {
+            <option [value]="type">{{ type.replaceAll('_', ' ') }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label for="reward-enabled">Enabled</label
+        ><select id="reward-enabled" name="enabled" [(ngModel)]="filters.enabled">
+          <option value="">All</option>
+          <option value="true">Enabled</option>
+          <option value="false">Disabled / expired / revoked</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="reward-from">Created from (local)</label
+        ><input id="reward-from" type="datetime-local" name="from" [(ngModel)]="filters.from" />
+      </div>
+      <div class="field">
+        <label for="reward-to">Created to (local)</label
+        ><input id="reward-to" type="datetime-local" name="to" [(ngModel)]="filters.to" />
+      </div>
+      <div class="field">
+        <label for="reward-user-filter">Recipient user ID (optional)</label
+        ><input id="reward-user-filter" name="recipientId" [(ngModel)]="filters.recipientUserId" />
+      </div>
+      <div class="flex items-end pb-4">
+        <button type="submit" class="btn secondary" [disabled]="loading()">Apply filters</button>
+      </div>
+    </form>
+    <section class="card">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="border-b">
+              <th class="p-3">Reward / recipient</th>
+              <th class="p-3">Value</th>
+              <th class="p-3">Status</th>
+              <th class="p-3">Expiration</th>
+              <th class="p-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of rewards(); track r.id) {
+              <tr class="border-b border-gray-100 dark:border-gray-800">
+                <td class="p-3">
+                  <span class="font-medium">{{ r.title }}</span
+                  ><span class="muted block break-all">{{ r.recipientEmail }}</span>
+                </td>
+                <td class="p-3">
+                  {{ r.rewardValue ?? '-' }}
+                  {{ r.rewardType === 'PERCENT_DISCOUNT' ? '%' : r.currency }}
+                </td>
+                <td class="p-3">
+                  <span class="badge brand">{{ r.status }}</span>
+                </td>
+                <td class="p-3 whitespace-nowrap">{{ r.expiresAt | date: 'medium' }}</td>
+                <td class="p-3">
+                  <button class="btn secondary sm whitespace-nowrap" (click)="view(r)">View</button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="5" class="muted p-6 text-center">
+                  {{ loading() ? 'Loading rewards...' : 'No rewards found.' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <footer class="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <button
+          class="btn secondary sm"
+          [disabled]="page() <= 1 || loading()"
+          (click)="page.set(page() - 1); load()"
+        >
+          Previous</button
+        ><span>{{ total() }} rewards · Page {{ page() }} of {{ pages() }}</span
+        ><button
+          class="btn secondary sm"
+          [disabled]="page() >= pages() || loading()"
+          (click)="page.set(page() + 1); load()"
+        >
+          Next
+        </button>
+      </footer>
+    </section>
+  }
+  @if (formOpen()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      tabindex="-1"
+      (keydown.escape)="close()"
+    >
+      <section
+        appDialogFocus
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reward-form-title"
+        class="card max-h-[90vh] w-full max-w-3xl overflow-y-auto"
+      >
+        <header class="mb-4 flex items-center justify-between">
+          <h2 id="reward-form-title">
+            {{ editing() ? 'Edit draft reward' : 'Create Instant Reward' }}
+          </h2>
+          <button class="btn secondary sm" [disabled]="busy()" (click)="close()">Close</button>
+        </header>
+        @if (error()) {
+          <div class="alert mb-4" role="alert">{{ error() }}</div>
+        }
+        <form (ngSubmit)="save()" #rewardForm="ngForm">
+          <fieldset [disabled]="busy()">
+            <div class="grid gap-x-4 sm:grid-cols-2">
+              <div class="field sm:col-span-2">
+                <label for="reward-user">Find an existing user (optional)</label
+                ><input
+                  id="reward-user"
+                  name="lookup"
+                  [ngModel]="lookup"
+                  (ngModelChange)="searchUsers($event)"
+                  autocomplete="off"
+                  placeholder="Search name or email (2+ characters)"
+                />
+                @for (user of users(); track user.id) {
+                  <button
+                    type="button"
+                    class="btn secondary sm mt-2 text-left"
+                    (click)="chooseUser(user)"
+                  >
+                    {{ user.name }} ({{ user.email }})
+                  </button>
+                }
+              </div>
+              <div class="field">
+                <label for="reward-email">Recipient email</label
+                ><input
+                  id="reward-email"
+                  name="email"
+                  type="email"
+                  required
+                  maxlength="254"
+                  [(ngModel)]="form.recipientEmail"
+                  (ngModelChange)="recipientChanged()"
+                />
+                <p class="muted text-xs">
+                  An account is optional at issuance. Only this recipient can claim.
+                </p>
+              </div>
+              <div class="field">
+                <label for="reward-business">Business ID (optional)</label
+                ><input id="reward-business" name="businessId" [(ngModel)]="form.businessId" />
+              </div>
+              <div class="field sm:col-span-2">
+                <label for="reward-title">Reward title</label
+                ><input
+                  id="reward-title"
+                  name="title"
+                  required
+                  maxlength="120"
+                  [(ngModel)]="form.title"
+                />
+              </div>
+              <div class="field sm:col-span-2">
+                <label for="reward-description">Description</label
+                ><textarea
+                  id="reward-description"
+                  name="description"
+                  maxlength="2000"
+                  rows="3"
+                  [(ngModel)]="form.description"
+                ></textarea>
+              </div>
+              <div class="field">
+                <label for="reward-kind">Reward type</label
+                ><select id="reward-kind" name="kind" [(ngModel)]="form.rewardType">
+                  @for (type of types; track type) {
+                    <option [value]="type">{{ type.replaceAll('_', ' ') }}</option>
+                  }
+                </select>
+              </div>
+              <div class="field">
+                <label for="reward-value">Reward value</label
+                ><input
+                  id="reward-value"
+                  name="value"
+                  type="number"
+                  min="0.01"
+                  [max]="form.rewardType === 'PERCENT_DISCOUNT' ? 100 : 1000000"
+                  step="0.01"
+                  [(ngModel)]="form.rewardValue"
+                  [required]="
+                    form.rewardType === 'PERCENT_DISCOUNT' || form.rewardType === 'FIXED_DISCOUNT'
+                  "
+                />
+              </div>
+              <div class="field">
+                <label for="reward-currency">Currency (e.g. USD)</label
+                ><input
+                  id="reward-currency"
+                  name="currency"
+                  maxlength="3"
+                  [(ngModel)]="form.currency"
+                  [required]="form.rewardType === 'FIXED_DISCOUNT'"
+                />
+              </div>
+              <div class="field">
+                <label for="reward-promo">Promo / code (optional)</label
+                ><input
+                  id="reward-promo"
+                  name="promo"
+                  maxlength="80"
+                  [(ngModel)]="form.promoCode"
+                />
+              </div>
+              <div class="field sm:col-span-2">
+                <label for="reward-expiry">Expiration (your local time)</label
+                ><input
+                  id="reward-expiry"
+                  name="expires"
+                  type="datetime-local"
+                  required
+                  [(ngModel)]="form.expiresAt"
+                />
+              </div>
+            </div>
+            <label class="mb-4 flex items-center gap-2"
+              ><input type="checkbox" name="verification" [(ngModel)]="form.verificationRequired" />
+              Require separate email verification before claim</label
+            >
+            @if (!editing()) {
+              <label class="mb-4 flex items-center gap-2"
+                ><input type="checkbox" name="send" [(ngModel)]="form.sendImmediately" /> Send email
+                immediately</label
+              >
+            }
+            <button type="submit" class="btn" [disabled]="rewardForm.invalid || busy()">
+              {{ busy() ? 'Saving...' : editing() ? 'Save draft' : 'Create reward' }}
+            </button>
+          </fieldset>
+        </form>
+      </section>
+    </div>
+  }
+  @if (pending(); as p) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      tabindex="-1"
+      (keydown.escape)="close()"
+    >
+      <section
+        appDialogFocus
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reward-confirm-title"
+        class="card w-full max-w-lg"
+      >
+        <h2 id="reward-confirm-title" class="mb-3">Confirm {{ p.action }}</h2>
+        <p class="mb-4">{{ p.reward.title }} — {{ p.reward.recipientEmail }}</p>
+        @if (p.action === 'revoke') {
+          <p class="mb-4">Revocation is permanent. This reward cannot be re-enabled.</p>
+          <div class="field">
+            <label for="revoke-reason">Reason (optional)</label
+            ><textarea id="revoke-reason" maxlength="500" [(ngModel)]="revokeReason"></textarea>
+          </div>
+        }
+        @if (p.action === 'resend') {
+          <p class="mb-4">This creates a new email link and invalidates older unused links.</p>
+        }
+        <div class="flex justify-end gap-2">
+          <button class="btn secondary" [disabled]="busy()" (click)="close()">Cancel</button
+          ><button class="btn" [disabled]="busy()" (click)="confirm()">
+            {{ busy() ? 'Working...' : 'Confirm' }}
+          </button>
+        </div>
+      </section>
+    </div>
+  }
+</main>

@@ -20,8 +20,46 @@ const publicBaseUrl = z
   }, 'Use an HTTP(S) app URL without credentials, a query string, or a fragment')
   .transform((value) => new URL(value).toString().replace(/\/+$/, ''));
 
+const optionalSecret = (minimum: number) =>
+  z.preprocess((v) => (v === '' ? undefined : v), z.string().min(minimum).optional());
+const sender = z
+  .string()
+  .trim()
+  .max(254)
+  .refine((v) => {
+    if (/[\r\n]/.test(v)) return false;
+    const match = v.match(/^(?:[^<>]+<([^<>]+)>|([^<>]+))$/);
+    return !!match && z.email().safeParse((match[1] ?? match[2])!.trim()).success;
+  }, 'Use an email address or Display Name <email>');
 export const envSchema = z
   .object({
+    EMAIL_PROVIDER: z.literal('resend').default('resend'),
+    EMAIL_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    EMAIL_TEST_MODE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    RESEND_TEST_EMAIL: z.preprocess(
+      (v) => (typeof v === 'string' ? (v.trim() ? v.trim().toLowerCase() : undefined) : v),
+      z.email().optional(),
+    ),
+    RESEND_TEST_FROM_EMAIL: sender.default('GoDigitalVantage <onboarding@resend.dev>'),
+    RESEND_FROM_EMAIL: sender.default('GoDigitalVantage <notifications@mail.godigitalvantage.com>'),
+    RESEND_REWARDS_FROM_EMAIL: sender.default(
+      'GoDigitalVantage Rewards <rewards@mail.godigitalvantage.com>',
+    ),
+    RESEND_VERIFY_FROM_EMAIL: sender.default(
+      'GoDigitalVantage Verification <verify@mail.godigitalvantage.com>',
+    ),
+    RESEND_SECURITY_FROM_EMAIL: sender.default(
+      'GoDigitalVantage Security <security@mail.godigitalvantage.com>',
+    ),
+    RESEND_API_KEY: optionalSecret(1),
+    INSTANT_REWARDS_TOKEN_SECRET: optionalSecret(32),
+    RESEND_WEBHOOK_SECRET: optionalSecret(16),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().positive().default(3000),
     MONGODB_URI: z.string().min(1),

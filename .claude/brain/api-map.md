@@ -62,3 +62,11 @@ Redemption is atomic (`issued -> redeemed` via conditional update); issuance is 
 `/api/v1/admin/*`: separate Super Admin scope, current DB role check, existing CSRF. GET dashboard/system/search; paginated GET businesses/users/forms/responses/contacts/promotions/activity and detail; business metadata/state/member management/QR; user status/session actions/memberships; form publication/archive/restore/versions; supported promotion decisions. Full contract and limits: [admin](admin.md).
 
 - Admin PATCH users/:id/role and membership role/status PATCH now implemented; block/unblock aliases on user action POST. All unsafe actions remain CSRF-protected and Super Admin-only. See admin.md for request contracts and concurrency guarantees.
+
+## Instant Rewards (/api/v1)
+
+Management permission: active SUPER_ADMIN or explicit `instant_rewards:manage`. GET/POST `/instant-rewards/admin`; GET `/instant-rewards/admin/summary`, `/users`, `/:id`, `/:id/audit`; PATCH `/:id` (unsent draft with revision); POST `/:id/send`, `/resend`, `/enable`, `/disable`, `/revoke` (confirmation). Recipient: GET `/instant-rewards/mine`; POST `/view`, `/request-verification`, `/verify`, `/claim`; POST `/instant-rewards/:id/request-link`. Token-bearing inputs are POST bodies, never URL params. SUPER_ADMIN POST `/admin/users/:id/instant-reward-access` delegates/removes permission and revokes sessions. Raw signed POST `/webhooks/instant-rewards/email` is outside browser CSRF; all browser writes keep CSRF. See the spec for request/response fields and errors.
+
+## Shared email provider (2026-10-19)
+
+POST /api/v1/webhooks/resend is the shared raw signed webhook. /api/v1/webhooks/instant-rewards/email remains an alias. No public arbitrary-send, reset or OTP endpoint was added.

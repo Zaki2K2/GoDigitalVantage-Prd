@@ -1,4 +1,4 @@
-﻿import { Schema, model, Types } from 'mongoose';
+import { Schema, model, Types } from 'mongoose';
 import { User } from '../auth/user.model';
 import { RefreshToken } from '../auth/refresh-token.model';
 import { Business } from '../businesses/business.model';
@@ -303,6 +303,51 @@ export async function businessState(
         { _id: businessId },
         { adminState: state, status },
         { runValidators: true },
+      );
+      return { success: true };
+    },
+  );
+}
+
+export async function instantRewardAccess(actorId: string, targetId: string, enabled: boolean) {
+  return mutate(
+    {
+      actorId,
+      targetId,
+      scope: 'platform-users',
+      entity: 'users',
+      action: 'INSTANT_REWARD_ACCESS_CHANGED',
+      after: { enabled },
+    },
+    async (record) => {
+      if (actorId === targetId)
+        throw new AppError(
+          409,
+          'SELF_PROTECTED',
+          'You cannot change your own administrator access',
+        );
+      const user = await User.findById(targetId).lean();
+      if (!user) throw notFound('User not found');
+      if (user.status !== 'active')
+        throw new AppError(
+          409,
+          'ACCOUNT_UNAVAILABLE',
+          'Activate this account before changing its permissions',
+        );
+      await record({ permissions: user.permissions ?? [] });
+      await User.updateOne(
+        { _id: targetId },
+        {
+          ...(enabled
+            ? { $addToSet: { permissions: 'instant_rewards:manage' } }
+            : { $pull: { permissions: 'instant_rewards:manage' } }),
+          $inc: { sessionVersion: 1 },
+          $set: { sessionsRevokedAt: new Date() },
+        },
+      );
+      await RefreshToken.updateMany(
+        { userId: targetId },
+        { revokedAt: new Date(), familyRevoked: true },
       );
       return { success: true };
     },

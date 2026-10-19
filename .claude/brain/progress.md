@@ -46,3 +46,17 @@ Implemented platform administration; see [admin](admin.md) for access provisioni
 - Verification: final full API suite 168/168 across 13 files and ChromeHeadless suite 131/131. Both production builds, API typecheck, lint, formatting and diff whitespace checks passed. All test mutations use gdv_test, not application/production data.
 
 - Reworked the Super Admin dashboard presentation with four primary totals, business-health progress, feedback rating and empty state, contextual access restrictions, and grouped forms/customer/reward metrics. AdminDashboard reuses existing cards, icons, colors and API data. Dashboard rendering/filter links and zero-data calculations are covered by tests.
+
+## Shared email provider (2026-10-19)
+
+Shared Resend module/spec/templates and fail-closed gates implemented for mail.godigitalvantage.com. Domain read-only status: not_started, not verified. Local non-secret sender settings updated with EMAIL_ENABLED=false; secret values unchanged. Production/DNS/provider resources untouched. Verification results recorded in docs/email-resend.md.
+
+## Restricted email testing
+
+Added EMAIL_TEST_MODE=false, optional RESEND_TEST_EMAIL and configurable approved test sender. Targeted provider/reward regression 43 passed; blocked sends never reach Resend or grant delivery/verification/claim state. No Vercel/deployment/secret/UI/auth changes. Exact opt-in API variables documented in docs/email-resend.md.
+
+Restricted test-mode validation: full API suite 214/214 passed (17 files, `--testTimeout=20000`); targeted email/reward suite 43/43. API typecheck, both production builds, lint and formatting passed. No real email submission, deployment, Vercel setting or secret change was performed.
+
+## Deployment readiness review
+
+43 targeted provider/reward tests, API typecheck and both production builds passed. Configured API host: go-digital-vantage-api-roan.vercel.app (frontend rewrite). Direct health recovered from 503 to 200; live shared webhook returns 403 CSRF_INVALID rather than the local signature-handler 401. Deployed revision/routing must be confirmed before approved email testing. No secrets/settings/deployments/emails changed. Checklist and two-email full-verification E2E plan: docs/resend-deployment-checklist.md.

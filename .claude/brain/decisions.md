@@ -47,3 +47,21 @@
 - ✅ Vercel Hobby, two projects: `apps/api` runs as one Vercel Function (`api/index.js` -> `dist/vercel.js`, built by `tsc`; all paths rewritten to it) and `apps/web` rewrites `/api/*` to the API project so the browser stays same-origin. Mongo connection is cached per warm instance (`src/db.ts`). Rate-limit counters move to MongoDB with `RATE_LIMIT_STORE=mongo` (`rate_limits`, atomic pipeline upsert + TTL); local dev and tests keep the in-memory default. Reward cooldowns/caps and scan dedupe were already Mongo-backed; no other process memory or filesystem state exists.
 
 - Admin uses explicit USER/SUPER_ADMIN DB privileges and safe inclusion projections; normal business endpoint permissions are unchanged. Standalone MongoDB remains supported; audit intent precedes mutation with crash-visible pending outcome. Business role/ownership changes now serialize per business and require another active owner before owner demotion/removal. Read-only inspection replaces impersonation. See [admin](admin.md).
+
+## Instant Rewards decisions (2026-10-19)
+
+- A delegated global `instant_rewards:manage` permission grants only this module. Business ownership alone grants none. Super Admin controls delegation with existing serialized/audited administration and session invalidation.
+- There is no trusted global verified-email flag: separate one-time email challenge proves ownership per reward; the no-extra-verification policy still requires the original emailed claim token. User ID and current normalized email must both match bound rewards.
+- A single MongoDB conditional document update records entitlement plus durable audit event. This supports standalone local MongoDB without introducing replica-set-only transactions. Claims reveal a code and receipt; no wallet/payment/real-world fulfillment is fabricated.
+- Persist only token hashes and non-bearer random operation nonces. A dedicated server HMAC secret reconstructs identical provider-idempotent retries; no raw email bodies/tokens are stored. Rotate links with explicit resend; retry pending sends with their existing UUID within 20 hours.
+- Use Resend HTTPS adapter and signed raw Svix webhooks. Acceptance is SENT; DELIVERED requires authenticated provider evidence. Missing sender/configuration produces visible stable errors. Existing business recovery reward delivery remains unchanged.
+- Email links use fragments, immediately scrubbed, with inline existing login and in-memory token retention. No token returnUrl/storage/GET endpoints.
+- Expiry is checked on every mutation and derived on every DTO; bounded lazy synchronization appends expiry events. Retain all timestamps and audit history.
+
+## Shared email provider (2026-10-19)
+
+Use mail.godigitalvantage.com only; configurable display-name sender aliases and EMAIL_ENABLED=false. Require live provider verification and sending capability before submission; use no new dependency. Preserve existing secrets; no provider/DNS/deployment writes. Support reply-to omitted until receiving mailbox confirmation. OTP/reset/claim-confirmation are reusable templates, not newly activated auth or automatic post-claim flows.
+
+## Restricted email testing
+
+Restricted Resend test mode is opt-in and independent of EMAIL_ENABLED. Only exact normalized RESEND_TEST_EMAIL is allowed; no redirection. RESEND_TEST_FROM_EMAIL must resolve to onboarding@resend.dev; production senders remain restricted to mail.godigitalvantage.com. Test mode bypasses custom-domain lookup only, retaining webhook/HTTPS/token/auth/idempotency controls.

@@ -59,25 +59,71 @@ export class AppShell {
   protected readonly businessList = signal<Business[]>([]);
   protected readonly theme = inject(ThemeService);
 
+  private readonly personalMode = inject(ActivatedRoute).snapshot.data['personal'] === true;
   protected readonly adminMode = inject(ActivatedRoute).snapshot.data['admin'] === true;
-  protected readonly groups: NavGroup[] = this.adminMode
+  protected readonly groups: NavGroup[] = this.personalMode
     ? [
         {
-          title: 'Platform administration',
+          title: 'Rewards',
           items: [
-            { path: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
-            { path: '/admin/businesses', label: 'Businesses', icon: 'business' },
-            { path: '/admin/users', label: 'Users', icon: 'user' },
-            { path: '/admin/forms', label: 'Forms', icon: 'form' },
-            { path: '/admin/responses', label: 'Responses', icon: 'responses' },
-            { path: '/admin/contacts', label: 'Contacts', icon: 'contacts' },
-            { path: '/admin/promotions', label: 'Promotions', icon: 'gift' },
-            { path: '/admin/activity', label: 'Activity', icon: 'calendar' },
-            { path: '/admin/system', label: 'System', icon: 'shield' },
+            { path: '/my-rewards', label: 'My Rewards', icon: 'gift' },
+            ...(this.auth.user()?.platformRole === 'SUPER_ADMIN'
+              ? [
+                  {
+                    path: '/admin/instant-rewards',
+                    label: 'Manage Instant Rewards',
+                    icon: 'gift' as const,
+                  },
+                ]
+              : this.auth.user()?.permissions?.includes('instant_rewards:manage')
+                ? [
+                    {
+                      path: '/rewards-admin',
+                      label: 'Manage Instant Rewards',
+                      icon: 'gift' as const,
+                    },
+                  ]
+                : []),
           ],
         },
       ]
-    : GROUPS;
+    : this.adminMode
+      ? [
+          {
+            title: 'Platform administration',
+            items: [
+              { path: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
+              { path: '/admin/businesses', label: 'Businesses', icon: 'business' },
+              { path: '/admin/users', label: 'Users', icon: 'user' },
+              { path: '/admin/forms', label: 'Forms', icon: 'form' },
+              { path: '/admin/responses', label: 'Responses', icon: 'responses' },
+              { path: '/admin/contacts', label: 'Contacts', icon: 'contacts' },
+              { path: '/admin/promotions', label: 'Promotions', icon: 'gift' },
+              { path: '/admin/instant-rewards', label: 'Instant Rewards', icon: 'gift' },
+              { path: '/my-rewards', label: 'My Rewards', icon: 'gift' },
+              { path: '/admin/activity', label: 'Activity', icon: 'calendar' },
+              { path: '/admin/system', label: 'System', icon: 'shield' },
+            ],
+          },
+        ]
+      : [
+          ...GROUPS,
+          {
+            title: 'Personal',
+            items: [
+              { path: '/my-rewards', label: 'My Rewards', icon: 'gift' },
+              ...(this.auth.user()?.permissions?.includes('instant_rewards:manage')
+                ? [
+                    {
+                      path: '/rewards-admin',
+                      label: 'Instant Rewards Admin',
+                      icon: 'shield' as const,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ];
   protected readonly user = this.auth.user;
   protected readonly business = signal<Business | null>(null);
   /** Desktop: full sidebar vs icon rail. */
@@ -98,7 +144,7 @@ export class AppShell {
   );
 
   constructor() {
-    if (!this.adminMode)
+    if (!this.adminMode && !this.personalMode)
       this.businesses.list().subscribe({
         next: (list) => {
           this.businessList.set(list);

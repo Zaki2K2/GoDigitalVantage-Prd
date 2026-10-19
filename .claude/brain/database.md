@@ -30,3 +30,13 @@ All tenant docs carry `businessId`; indexes lead with it. Status: `users`, `refr
 users adds platformRole (USER/SUPER_ADMIN) and sessionsRevokedAt; businesses adds adminState; business_memberships adds status; questionnaires adds adminArchived. All preserve safe legacy defaults. admin_audit stores immutable operation identity/intent and outcome (pending/completed/failed), indexed by time, business/time, actor/time. Global timestamp/_id indexes support platform lists. See [admin](admin.md).
 
 - users.sessionVersion and refresh_tokens.sessionVersion default to 0, with version in signed access tokens. admin_mutation_locks has a unique string _id scope, token referencing admin_audit intent and acquiredAt; no TTL. Business owner/member changes preserve a remaining active owner and keep primary ownerUserId consistent.
+
+## Instant Rewards
+
+`instant_rewards` stores one authoritative status, immutable sent terms/recipient snapshot, historical lifecycle times, revision, hashed claim/verification tokens, purpose-separated delivery-operation nonces, creator-scoped creation UUID/fingerprint, claim UUID/receipt and durable pendingEvents outbox. Indexes: unique creator+request UUID; sparse unique active token hashes; recipient email/user + creation; status+expiry; provider ID; creation+ID. No TTL deletion. `enabled` is derived from status.
+
+`instant_reward_events` has unique event ID, reward/actor/type/time and safe metadata, indexed by reward+time and time. No token/body/secret fields. Atomic lifecycle update appends an outbox event; idempotent upsert drains only acknowledged IDs. Deferred history writes retain the outbox for subsequent reads. User permissions enum adds `instant_rewards:manage`, default empty. Existing documents require no backfill; creation of the new collections/indexes and Mongoose defaults is additive.
+
+## Shared email provider (2026-10-19)
+
+email_delivery_events: unique eventId, indexed providerMessageId, type (delivered/failed/bounced/complained/suppressed), occurredAt, receivedAt. No bodies, tokens or OTPs. Additive indexes; no TTL or migration of existing reward documents.

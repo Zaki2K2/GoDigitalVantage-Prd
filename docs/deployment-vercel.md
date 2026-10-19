@@ -37,3 +37,7 @@ Network Access must allow Vercel (`0.0.0.0/0`); use a dedicated least-privilege 
 3. Set the web rewrite destination to the API domain, commit, let the web project redeploy.
 4. Open the web URL: register, onboard, publish, open `/r/<slug>`, submit, redeem a reward.
 5. Confirm `GET https://<web>/api/v1/health` also returns 200 (rewrite works).
+
+## Transactional email
+
+Follow [Resend email configuration](email-resend.md) for exact API environment variables, sender aliases, verified-domain gate, signed webhook setup and enablement checks. Keep EMAIL_ENABLED=false until verified/configured. No email secrets belong in the web Vercel project.

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthLayout } from '../../shared/auth-layout';
@@ -11,6 +11,8 @@ import { AuthService, apiErrorMessage } from '../../core/auth/auth.service';
   templateUrl: './login.page.html',
 })
 export class LoginPage {
+  readonly stayOnPage = input(false);
+  readonly signedIn = output<void>();
   protected readonly showPassword = signal(false);
   private readonly fb = inject(FormBuilder).nonNullable;
   private readonly auth = inject(AuthService);
@@ -40,7 +42,11 @@ export class LoginPage {
     this.error.set(null);
     const { email, password } = this.form.getRawValue();
     this.auth.login(email, password).subscribe({
-      next: () => void this.router.navigateByUrl(this.safeReturnUrl()),
+      next: () => {
+        this.loading.set(false);
+        if (this.stayOnPage()) this.signedIn.emit();
+        else void this.router.navigateByUrl(this.safeReturnUrl());
+      },
       error: (err: unknown) => {
         this.error.set(apiErrorMessage(err));
         this.loading.set(false);

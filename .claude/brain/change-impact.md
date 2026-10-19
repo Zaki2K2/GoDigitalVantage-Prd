@@ -25,3 +25,15 @@
 - Platform role/session cutoff or business/member/form moderation changes -> `modules/admin/*`, auth middleware, membership lookup, public form resolution, admin guard/shell, normal auth/business/form/QR tests. See [admin](admin.md).
 
 - Session version -> auth issuance/refresh, requireAuth, admin block/revoke/role actions, auth and admin permission tests. Business owner role/removal -> admin mutation locks, primary owner pointer, live membership lookup and tenant/concurrency tests.
+
+## Instant Rewards (2026-10-19)
+
+Adds isolated collections/module/UI and optional email configuration. Auth DTO adds safe permissions; existing cookie/session-version/CSRF behavior stays authoritative. Admin user permission changes use existing mutation lock/audit and revoke sessions. Browser reward token API calls use POST/no-store/no-referrer; signed provider webhook is deliberately raw-body before JSON/CSRF middleware. New frontend routes precede generic admin sections. Existing feedback rewards and tenant authorization remain separate. Configure verified sender, secret and signed webhook before production email; see docs/instant-rewards-operations.md.
+
+## Shared email provider (2026-10-19)
+
+Email provider migration affects env validation/examples, modules/email, reward email composition/receipt reconciliation, signed webhook aliases and provider tests. No UI redesign, auth route change or secret rotation. Deployment instructions: docs/email-resend.md.
+
+## Restricted email testing
+
+Restricted email testing changes env schema/examples and shared adapter only, plus provider/reward safety tests. Shared templates, signed webhook routes and reward security remain unchanged. Production mode retains verified-domain gate; see docs/specs/email-provider.md and docs/email-resend.md.

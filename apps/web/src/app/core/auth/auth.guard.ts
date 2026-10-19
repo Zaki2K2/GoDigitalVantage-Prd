@@ -29,3 +29,12 @@ export const businessUserGuard: CanActivateFn = () => {
     ? inject(Router).createUrlTree(['/admin'])
     : true;
 };
+
+export const instantRewardAdminGuard: CanActivateFn = () => {
+  const user = inject(AuthService).user();
+  return (
+    user?.platformRole === 'SUPER_ADMIN' ||
+    user?.permissions?.includes('instant_rewards:manage') ||
+    inject(Router).createUrlTree(['/my-rewards'])
+  );
+};

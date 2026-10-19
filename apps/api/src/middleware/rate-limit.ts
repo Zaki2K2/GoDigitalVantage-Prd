@@ -70,3 +70,28 @@ export function createRewardLookupLimiter() {
     handler,
   });
 }
+
+export function createInstantRewardLimiter() {
+  return rateLimit({
+    store: sharedStore('instant-reward'),
+    windowMs: 15 * 60 * 1000,
+    limit: 60,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: (req) => `${req.auth!.userId}|${ipKeyGenerator(req.ip ?? '')}`,
+    handler,
+  });
+}
+
+export function createInstantRewardSendLimiter() {
+  return rateLimit({
+    store: sharedStore('instant-reward-send'),
+    windowMs: 15 * 60 * 1000,
+    limit: 30,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: (req) => req.auth!.userId,
+    skip: (req) => req.method === 'GET',
+    handler,
+  });
+}

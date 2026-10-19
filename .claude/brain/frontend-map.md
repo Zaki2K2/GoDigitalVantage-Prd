@@ -39,3 +39,7 @@ Styling: design tokens (`--c-*`, `--radius`, `--shadow-*`) + shared classes (`.b
 - Admin user list/detail now exposes Block/Unblock and Revoke Sessions, with platform-role control on detail. Members and memberships tabs expose role/status/removal through each row businessId. Shared confirmations, notifications and styles are reused.
 
 - Admin dashboard presentation is extracted to features/admin/admin-dashboard.ts/html, receiving metrics and averageRating from AdminPage. It groups real platform data without new endpoints or mock charts; admin lists, permissions and normal business dashboard remain unchanged.
+
+## Instant Rewards
+
+`features/instant-rewards`: shared typed API, reward details/timeline, admin list/filter/summary/create/edit/confirm/audit screens; My Rewards; scrubbed-token landing with inline existing LoginPage. Routes: `/admin/instant-rewards`, delegated `/rewards-admin`, personal `/my-rewards`, public landing `/instant-reward`. Personal routes skip business onboarding/data queries. Existing AppShell, CSS controls/cards/tables, Icon and DialogFocus reused. Backend allowedActions drives controls. Super Admin user details can toggle the permission with existing confirmation flow.

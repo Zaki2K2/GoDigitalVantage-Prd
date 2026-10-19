@@ -599,6 +599,17 @@ export class AdminPage {
       body: { action, confirm: true },
     });
   }
+  protected instantRewardAccess(): void {
+    const permissions = this.record()?.['permissions'];
+    const enabled = !(Array.isArray(permissions) && permissions.includes('instant_rewards:manage'));
+    this.pending.set({
+      title: enabled ? 'Grant Instant Rewards management' : 'Remove Instant Rewards management',
+      description:
+        'This changes only Instant Rewards management and revokes current sessions. The user must sign in again.',
+      path: `users/${this.id()}/instant-reward-access`,
+      body: { enabled, confirm: true },
+    });
+  }
   protected platformRoleAction(): void {
     this.pending.set({
       title: 'Change platform role',
