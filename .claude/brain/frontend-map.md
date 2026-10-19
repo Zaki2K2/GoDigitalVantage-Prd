@@ -32,3 +32,10 @@ Styling: design tokens (`--c-*`, `--radius`, `--shadow-*`) + shared classes (`.b
 - Locally bundled assets and license notes: `public/assets/`. Product priorities: `docs/product-plan.md`. LAN startup/phone testing: `docs/local-development.md`.
 
 - M-REWARD: `core/rewards/rewards.service.ts` (`RewardsApi`, types, `discountLabel`); `shared/reward-card.ts` (customer coupon card, also on the thank-you page); `features/public/reward-link.page.ts` (`/reward/:token`, anonymous); `features/rewards/` routed under `/rewards`: `rewards.page` (tabs) -> `rewards-overview`, `rewards-issued` (list + drawer: approve/reject/cancel/share), `rewards-incidents` (complaints, issue/resolve), `rewards-redeem` (verify + redeem, one requestId per verified code), `rewards-rules` (templates, create/edit/enable). Shell nav item "Rewards". Icons `gift`, `ticket`, `send` were appended to `public/assets/bootstrap-icons.svg` + `IconName`.
+
+## Platform administration
+`/admin/:section[/:id]` is guarded independently of onboarding and reuses AppShell with admin navigation. Supported: dashboard/businesses/users/forms/responses/contacts/promotions/activity/system/search. Shared RecordDetails, existing BusinessForm, QuestionnaireFormView and DialogFocus. No parallel design system. See [admin](admin.md).
+
+- Admin user list/detail now exposes Block/Unblock and Revoke Sessions, with platform-role control on detail. Members and memberships tabs expose role/status/removal through each row businessId. Shared confirmations, notifications and styles are reused.
+
+- Admin dashboard presentation is extracted to features/admin/admin-dashboard.ts/html, receiving metrics and averageRating from AdminPage. It groups real platform data without new endpoints or mock charts; admin lists, permissions and normal business dashboard remain unchanged.

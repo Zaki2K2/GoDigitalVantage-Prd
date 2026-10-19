@@ -208,7 +208,13 @@ function versionDto(v: VersionDoc) {
 }
 
 export async function hasPublished(businessId: string): Promise<boolean> {
-  return (await Questionnaire.exists({ businessId, publishedVersion: { $gt: 0 } })) !== null;
+  return (
+    (await Questionnaire.exists({
+      businessId,
+      adminArchived: { $ne: true },
+      publishedVersion: { $gt: 0 },
+    })) !== null
+  );
 }
 
 const UNAVAILABLE = () =>
@@ -221,9 +227,14 @@ const UNAVAILABLE = () =>
 export async function loadPublished(slug: string, version?: number) {
   if (!/^[a-z0-9-]{1,60}$/.test(slug)) throw UNAVAILABLE();
   const business = await Business.findOne({ slug }).lean();
-  if (!business || business.status === 'disabled') throw UNAVAILABLE();
+  if (
+    !business ||
+    business.status === 'disabled' ||
+    (business.adminState && business.adminState !== 'active')
+  )
+    throw UNAVAILABLE();
   const qn = await Questionnaire.findOne({ businessId: business._id }).lean();
-  if (!qn || qn.publishedVersion < 1) throw UNAVAILABLE();
+  if (!qn || qn.adminArchived || qn.publishedVersion < 1) throw UNAVAILABLE();
   const wanted = version ?? qn.publishedVersion;
   if (wanted < 1 || wanted > qn.publishedVersion) throw UNAVAILABLE();
   const v = await QuestionnaireVersion.findOne({

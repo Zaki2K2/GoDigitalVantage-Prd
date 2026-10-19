@@ -1,0 +1,204 @@
+﻿<section aria-label="Platform totals" class="grid grid-cols-2 gap-4 xl:grid-cols-4">
+  @for (item of primary; track item.metric) {
+    <a
+      [routerLink]="item.route"
+      class="card group !mb-0 !p-5 no-underline transition hover:border-brand-300 hover:no-underline dark:hover:border-brand-500/40"
+    >
+      <div class="mb-5 flex items-center justify-between gap-2">
+        <span
+          class="inline-flex size-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400"
+          ><app-icon [name]="item.icon" [size]="21"
+        /></span>
+        <span
+          class="text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500 dark:text-gray-600"
+          ><app-icon name="arrow-up" [size]="17" class="rotate-45"
+        /></span>
+      </div>
+      <p class="mb-1 text-theme-xs font-medium text-gray-500 dark:text-gray-400">
+        {{ item.label }}
+      </p>
+      <p
+        class="mb-2 text-3xl font-semibold tracking-tight text-gray-900 tabular-nums sm:text-4xl dark:text-white/90"
+      >
+        {{ value(item.metric) === null ? '-' : (value(item.metric) | number: '1.0-0') }}
+      </p>
+      <p class="m-0 text-theme-xs text-gray-400 dark:text-gray-500">{{ item.description }}</p>
+    </a>
+  }
+</section>
+
+@if ((value('Suspended businesses') ?? 0) > 0 || (value('Disabled users') ?? 0) > 0) {
+  <aside
+    class="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-white/[0.03]"
+    aria-label="Access restrictions"
+  >
+    <span class="flex items-center gap-2 text-theme-sm font-medium text-gray-700 dark:text-gray-200"
+      ><app-icon name="shield" [size]="18" /> Access restrictions</span
+    >
+    <div class="flex flex-wrap items-center gap-3">
+      <a
+        routerLink="/admin/businesses"
+        [queryParams]="{ status: 'suspended' }"
+        class="badge warn no-underline"
+        >{{ value('Suspended businesses') | number: '1.0-0' }} suspended businesses
+        <app-icon name="arrow-right" [size]="12"
+      /></a>
+      <a routerLink="/admin/users" [queryParams]="{ status: 'disabled' }" class="badge no-underline"
+        >{{ value('Disabled users') | number: '1.0-0' }} blocked users
+        <app-icon name="arrow-right" [size]="12"
+      /></a>
+    </div>
+  </aside>
+}
+<div class="mt-5 grid gap-5 xl:grid-cols-3">
+  <section class="card !mb-0 xl:col-span-2" aria-labelledby="business-health-title">
+    <div class="mb-6 flex items-start justify-between gap-3">
+      <div>
+        <h2 id="business-health-title">Business health</h2>
+        <p class="m-0 text-theme-xs text-gray-500">
+          Workspace adoption and onboarding at a glance.
+        </p>
+      </div>
+      <a routerLink="/admin/businesses" class="btn secondary sm !shadow-none"
+        >View businesses <app-icon name="arrow-right" [size]="14"
+      /></a>
+    </div>
+    <div class="flex items-end justify-between gap-4">
+      <div>
+        <p class="mb-1 text-theme-xs text-gray-500">Active businesses</p>
+        <p class="m-0 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white/90">
+          {{
+            value('Active businesses') === null
+              ? '-'
+              : (value('Active businesses') | number: '1.0-0')
+          }}<span class="ml-2 text-base font-normal text-gray-400"
+            >/
+            {{ value('Businesses') === null ? '-' : (value('Businesses') | number: '1.0-0') }}</span
+          >
+        </p>
+      </div>
+      @if (value('Businesses') !== null && value('Businesses')! > 0) {
+        <span class="badge success">{{ activeShare() | number: '1.0-0' }}% active</span>
+      }
+    </div>
+    <div
+      class="mt-4 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+      role="progressbar"
+      aria-label="Share of active businesses"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      [attr.aria-valuenow]="activeShare()"
+    >
+      <div
+        class="h-full rounded-full bg-brand-500 transition-all"
+        [style.width.%]="activeShare()"
+      ></div>
+    </div>
+    <div class="mt-6 grid grid-cols-3 gap-3 border-t border-gray-100 pt-5 dark:border-gray-800">
+      @for (item of businessMetrics; track item.metric) {
+        <a
+          [routerLink]="item.route"
+          [queryParams]="item.query || {}"
+          class="no-underline hover:no-underline"
+          ><p class="mb-1 text-xl font-semibold text-gray-900 tabular-nums dark:text-white/90">
+            {{ value(item.metric) === null ? '-' : (value(item.metric) | number: '1.0-0') }}
+          </p>
+          <p class="m-0 text-theme-xs text-gray-500 hover:text-brand-600">{{ item.label }}</p></a
+        >
+      }
+    </div>
+  </section>
+  <section class="card !mb-0 flex flex-col" aria-labelledby="feedback-quality-title">
+    <div class="mb-5 flex items-center justify-between">
+      <h2 id="feedback-quality-title" class="!mb-0">Feedback quality</h2>
+      <span
+        class="inline-flex size-9 items-center justify-center rounded-lg bg-warning-50 text-warning-500 dark:bg-warning-500/10"
+        ><app-icon name="star" [size]="19"
+      /></span>
+    </div>
+    @if (averageRating() !== null) {
+      <p
+        class="mb-1 text-5xl font-semibold tracking-tight text-gray-900 tabular-nums dark:text-white/90"
+      >
+        {{ averageRating() | number: '1.1-1'
+        }}<span class="ml-1 text-lg font-normal text-gray-400">/ 5</span>
+      </p>
+      <p class="mt-1 mb-5 text-theme-xs text-gray-500">Average submitted feedback rating</p>
+      <div
+        class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"
+        role="meter"
+        aria-label="Average feedback rating"
+        aria-valuemin="1"
+        aria-valuemax="5"
+        [attr.aria-valuenow]="averageRating()"
+      >
+        <div class="h-full rounded-full bg-warning-400" [style.width.%]="ratingShare()"></div>
+      </div>
+    } @else {
+      <p class="mt-2 mb-1 text-2xl font-semibold text-gray-900 dark:text-white/90">
+        No ratings yet
+      </p>
+      <p class="mb-5 text-theme-xs text-gray-500">
+        The average will appear after customers submit rated feedback.
+      </p>
+    }
+    <a
+      routerLink="/admin/responses"
+      class="mt-auto flex items-center justify-between gap-2 border-t border-gray-100 pt-5 text-theme-sm font-medium text-brand-600 no-underline hover:no-underline dark:border-gray-800 dark:text-brand-400"
+      >Explore responses <app-icon name="arrow-right" [size]="16"
+    /></a>
+  </section>
+</div>
+
+<div class="mt-5 grid gap-5 lg:grid-cols-3">
+  @for (group of groups; track group.title) {
+    <section class="card !mb-0">
+      <div class="mb-5 flex items-center gap-2.5">
+        <span class="text-gray-400"><app-icon [name]="group.icon" [size]="19" /></span>
+        <h2 class="!mb-0 !text-base">{{ group.title }}</h2>
+      </div>
+      <dl class="m-0 divide-y divide-gray-100 dark:divide-gray-800">
+        @for (item of group.items; track item.metric) {
+          <div class="flex items-center justify-between gap-3 py-3 first:pt-0">
+            <dt class="text-theme-sm font-normal text-gray-500">
+              <a
+                [routerLink]="item.route"
+                [queryParams]="item.query || {}"
+                class="text-inherit no-underline hover:text-brand-600 hover:no-underline"
+                >{{ item.label }}</a
+              >
+            </dt>
+            <dd
+              class="m-0 text-theme-sm font-semibold text-gray-800 tabular-nums dark:text-gray-200"
+            >
+              {{ value(item.metric) === null ? '-' : (value(item.metric) | number: '1.0-0') }}
+            </dd>
+          </div>
+        }
+      </dl>
+    </section>
+  }
+</div>
+
+<section
+  class="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-white/[0.03]"
+  aria-label="Administrative shortcuts"
+>
+  <div class="flex items-center gap-3">
+    <span class="text-gray-400"><app-icon name="calendar" [size]="20" /></span>
+    <div>
+      <p class="m-0 text-theme-sm font-medium text-gray-800 dark:text-gray-200">
+        Keep track of platform changes
+      </p>
+      <p class="m-0 mt-0.5 text-theme-xs text-gray-500">
+        Review administrative actions or check system health.
+      </p>
+    </div>
+  </div>
+  <div class="flex gap-2">
+    <a routerLink="/admin/system" class="btn secondary sm !shadow-none">System status</a
+    ><a routerLink="/admin/activity" class="btn secondary sm !shadow-none"
+      >Activity log <app-icon name="arrow-right" [size]="14"
+    /></a>
+  </div>
+</section>

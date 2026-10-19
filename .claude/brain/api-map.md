@@ -57,3 +57,8 @@ All under `/businesses/:id/...` need membership; **owner** = approve/reject/canc
 | GET /public/rewards/:token (anonymous, no-store) | signed `<rewardId>.<hmac>` link; code hidden until approved |
 | POST /public/:slug/responses | result now includes `reward` (customer view) or null |
 Redemption is atomic (`issued -> redeemed` via conditional update); issuance is idempotent per response (unique index) and capped atomically (`reward_quotas`).
+
+## Platform administration
+`/api/v1/admin/*`: separate Super Admin scope, current DB role check, existing CSRF. GET dashboard/system/search; paginated GET businesses/users/forms/responses/contacts/promotions/activity and detail; business metadata/state/member management/QR; user status/session actions/memberships; form publication/archive/restore/versions; supported promotion decisions. Full contract and limits: [admin](admin.md).
+
+- Admin PATCH users/:id/role and membership role/status PATCH now implemented; block/unblock aliases on user action POST. All unsafe actions remain CSRF-protected and Super Admin-only. See admin.md for request contracts and concurrency guarantees.

@@ -15,11 +15,16 @@ export interface Session {
   refreshToken: string | null;
 }
 
-async function issueRefreshToken(userId: UserDoc['_id'], familyId: string): Promise<string> {
+async function issueRefreshToken(
+  userId: UserDoc['_id'],
+  familyId: string,
+  sessionVersion = 0,
+): Promise<string> {
   const token = newOpaqueToken();
   await RefreshToken.create({
     userId,
     familyId,
+    sessionVersion,
     tokenHash: hashToken(token),
     expiresAt: new Date(Date.now() + REFRESH_TTL_SECONDS * 1000),
   });
@@ -29,8 +34,8 @@ async function issueRefreshToken(userId: UserDoc['_id'], familyId: string): Prom
 async function startSession(user: UserDoc): Promise<Session> {
   return {
     user,
-    accessToken: signAccessToken(user._id.toString()),
-    refreshToken: await issueRefreshToken(user._id, randomUUID()),
+    accessToken: signAccessToken(user._id.toString(), user.sessionVersion ?? 0),
+    refreshToken: await issueRefreshToken(user._id, randomUUID(), user.sessionVersion ?? 0),
   };
 }
 
@@ -57,7 +62,10 @@ export async function login(input: LoginInput): Promise<Session> {
   if (!user || !ok || user.status !== 'active') {
     throw new AppError(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
   }
-  return startSession(user);
+  const current = await User.findById(user._id).lean();
+  if (!current || current.status !== 'active' || current.passwordHash !== user.passwordHash)
+    throw unauthorized('Account unavailable');
+  return startSession(current);
 }
 
 /** Rotates the refresh token. Presenting an already-used token revokes its whole family. */
@@ -104,16 +112,25 @@ async function rotateFrom(existing: RefreshTokenDoc, claim: boolean): Promise<Se
   }
 
   const user = await User.findById(existing.userId).lean();
-  if (!user || user.status !== 'active') {
+  if (
+    !user ||
+    user.status !== 'active' ||
+    (existing.sessionVersion ?? 0) !== (user.sessionVersion ?? 0) ||
+    (existing.sessionVersion === undefined &&
+      user.sessionsRevokedAt &&
+      existing.createdAt <= user.sessionsRevokedAt)
+  ) {
     await revokeFamily(existing.familyId);
     throw unauthorized('Account unavailable');
   }
   return {
     user,
-    accessToken: signAccessToken(user._id.toString()),
+    accessToken: signAccessToken(user._id.toString(), user.sessionVersion ?? 0),
     // Grace-window replays get a short-lived access token only, never a new refresh token,
     // so a stolen just-rotated token cannot be turned into a persistent session.
-    refreshToken: claim ? await issueRefreshToken(user._id, existing.familyId) : null,
+    refreshToken: claim
+      ? await issueRefreshToken(user._id, existing.familyId, user.sessionVersion ?? 0)
+      : null,
   };
 }
 

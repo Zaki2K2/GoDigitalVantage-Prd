@@ -37,7 +37,11 @@ export function toBusinessDto(b: BusinessDoc, role: MembershipRole) {
 /** Membership query used by `requireBusinessAccess`. */
 export async function findMembership(userId: string, businessId: string) {
   const m = await BusinessMembership.findOne({ userId, businessId }).lean();
-  return m ? { role: m.role } : null;
+  if (!m || m.status === 'disabled') return null;
+  const b = await Business.findById(businessId, { adminState: 1, status: 1 }).lean();
+  return b && b.status !== 'disabled' && (!b.adminState || b.adminState === 'active')
+    ? { role: m.role }
+    : null;
 }
 
 function slugify(name: string): string {
@@ -99,7 +103,7 @@ export async function createBusiness(userId: string, input: CreateBusinessInput)
 }
 
 export async function listBusinesses(userId: string) {
-  const memberships = await BusinessMembership.find({ userId }).lean();
+  const memberships = await BusinessMembership.find({ userId, status: { $ne: 'disabled' } }).lean();
   const businesses = await Business.find({ _id: { $in: memberships.map((m) => m.businessId) } })
     .sort({ createdAt: 1 })
     .lean();

@@ -203,6 +203,7 @@ rewardSchema.index({ businessId: 1, code: 1 }, { unique: true });
 rewardSchema.index({ businessId: 1, status: 1, createdAt: -1 });
 rewardSchema.index({ businessId: 1, identityHash: 1, createdAt: -1 });
 
+rewardSchema.index({ createdAt: -1, _id: -1 });
 export const Reward = model<RewardDoc>('Reward', rewardSchema);
 
 /** Atomic counters for caps and cooldown windows (unique key + conditional upsert). */

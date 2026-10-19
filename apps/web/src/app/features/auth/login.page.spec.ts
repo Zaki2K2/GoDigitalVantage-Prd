@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, provideRouter } from '@angular/router';
 import { CSRF_COOKIE_NAME } from '../../core/auth/auth.service';
 import { LoginPage } from './login.page';
 
@@ -59,4 +59,31 @@ describe('LoginPage', () => {
     expect(el().querySelector('.alert')!.textContent).toContain('Invalid email or password');
     expect(el().querySelector<HTMLButtonElement>('button[type=submit]')!.disabled).toBeFalse();
   });
+  for (const [returnUrl, expected] of [
+    ['/onboarding/business', '/admin'],
+    ['/', '/admin'],
+    ['/admin/businesses', '/admin/businesses'],
+    ['//external.example', '/admin'],
+  ]) {
+    it(`sends a Super Admin with returnUrl ${returnUrl} to ${expected}`, () => {
+      spyOn(TestBed.inject(ActivatedRoute).snapshot.queryParamMap, 'get').and.returnValue(
+        returnUrl,
+      );
+      const navigate = spyOn(TestBed.inject(Router), 'navigateByUrl').and.resolveTo(true);
+      fill('platform@example.test', 'test-password-123');
+      el().querySelector('form')!.dispatchEvent(new Event('submit'));
+      http.expectOne('/api/v1/auth/login').flush({
+        data: {
+          user: {
+            id: 'admin',
+            fullName: 'Platform Admin',
+            email: 'platform@example.test',
+            status: 'active',
+            platformRole: 'SUPER_ADMIN',
+          },
+        },
+      });
+      expect(navigate).toHaveBeenCalledWith(expected);
+    });
+  }
 });

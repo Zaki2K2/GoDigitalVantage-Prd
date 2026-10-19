@@ -19,3 +19,5 @@ API dirs under `apps/api/src/modules/`, web dirs under `apps/web/src/app/feature
 | M-CAMP | campaigns | `messaging` / `campaigns` | M-SMS | CAM-01 | pending (P1) |
 | M-BILL | subscription/trial | `billing` / `settings` | M-BIZ | BILL-01 | pending (P1) |
 | M-AUDIT | audit_logs | `shared/audit` | M-BIZ | – | pending |
+
+- M-ADMIN implemented: explicit platform authorization, separate admin data scope, audited moderation and safe inspection. Full map: [admin](admin.md).

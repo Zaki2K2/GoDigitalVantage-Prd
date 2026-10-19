@@ -23,7 +23,11 @@
   [class.xl:px-3]="!expanded()"
 >
   <div class="flex h-10 items-center px-2" [class.xl:justify-center]="!expanded()">
-    <a routerLink="/" aria-label="GoDigitalVantage home" class="no-underline hover:no-underline">
+    <a
+      [routerLink]="adminMode ? '/admin' : '/'"
+      aria-label="GoDigitalVantage home"
+      class="no-underline hover:no-underline"
+    >
       <app-brand-logo [class.xl:hidden]="!expanded()" />
       @if (!expanded()) {
         <app-brand-logo [compact]="true" class="hidden xl:inline-flex" />
@@ -62,7 +66,7 @@
     }
   </nav>
 
-  @if (business(); as b) {
+  @if (!adminMode && business(); as b) {
     <div
       class="mt-4 rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 to-blue-light-50 p-4 dark:border-brand-500/20 dark:from-brand-500/10 dark:to-blue-light-500/10"
       [class.xl:hidden]="!expanded()"
@@ -106,6 +110,9 @@
       >
         <app-icon [name]="drawer() ? 'close' : 'menu'" />
       </button>
+      @if (adminMode) {
+        <span class="text-theme-sm font-semibold">Platform administration</span>
+      }
       @if (business(); as b) {
         <div class="min-w-0">
           @if (businessList().length > 1) {
@@ -178,12 +185,22 @@
                 {{ user()?.email }}
               </p>
             </div>
-            <a routerLink="/business" role="menuitem" class="menu-item menu-item-inactive mt-1">
-              <app-icon name="business" /> Business profile
-            </a>
-            <a routerLink="/settings" role="menuitem" class="menu-item menu-item-inactive"
-              ><app-icon name="settings" /> Settings</a
-            >
+            @if (user()?.platformRole === 'SUPER_ADMIN') {
+              <a routerLink="/admin" role="menuitem" class="menu-item menu-item-inactive"
+                ><app-icon name="shield" /> Platform admin</a
+              >
+            }
+            @if (!adminMode) {
+              <a routerLink="/" role="menuitem" class="menu-item menu-item-inactive"
+                ><app-icon name="dashboard" /> Business dashboard</a
+              >
+              <a routerLink="/business" role="menuitem" class="menu-item menu-item-inactive mt-1">
+                <app-icon name="business" /> Business profile
+              </a>
+              <a routerLink="/settings" role="menuitem" class="menu-item menu-item-inactive"
+                ><app-icon name="settings" /> Settings</a
+              >
+            }
             <button
               type="button"
               role="menuitem"

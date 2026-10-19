@@ -1,5 +1,12 @@
 import { Component, HostListener, computed, inject, signal } from '@angular/core';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  ActivatedRoute,
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
 import { filter, finalize } from 'rxjs';
 import { apiErrorMessage, AuthService } from '../../core/auth/auth.service';
 import { Business, BusinessApi } from '../../core/business/business.service';
@@ -52,7 +59,25 @@ export class AppShell {
   protected readonly businessList = signal<Business[]>([]);
   protected readonly theme = inject(ThemeService);
 
-  protected readonly groups = GROUPS;
+  protected readonly adminMode = inject(ActivatedRoute).snapshot.data['admin'] === true;
+  protected readonly groups: NavGroup[] = this.adminMode
+    ? [
+        {
+          title: 'Platform administration',
+          items: [
+            { path: '/admin/dashboard', label: 'Dashboard', icon: 'dashboard' },
+            { path: '/admin/businesses', label: 'Businesses', icon: 'business' },
+            { path: '/admin/users', label: 'Users', icon: 'user' },
+            { path: '/admin/forms', label: 'Forms', icon: 'form' },
+            { path: '/admin/responses', label: 'Responses', icon: 'responses' },
+            { path: '/admin/contacts', label: 'Contacts', icon: 'contacts' },
+            { path: '/admin/promotions', label: 'Promotions', icon: 'gift' },
+            { path: '/admin/activity', label: 'Activity', icon: 'calendar' },
+            { path: '/admin/system', label: 'System', icon: 'shield' },
+          ],
+        },
+      ]
+    : GROUPS;
   protected readonly user = this.auth.user;
   protected readonly business = signal<Business | null>(null);
   /** Desktop: full sidebar vs icon rail. */
@@ -73,12 +98,13 @@ export class AppShell {
   );
 
   constructor() {
-    this.businesses.list().subscribe({
-      next: (list) => {
-        this.businessList.set(list);
-        this.business.set(list[0] ?? null);
-      },
-    });
+    if (!this.adminMode)
+      this.businesses.list().subscribe({
+        next: (list) => {
+          this.businessList.set(list);
+          this.business.set(list[0] ?? null);
+        },
+      });
     // Close transient UI after every navigation.
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => {
       this.drawer.set(false);

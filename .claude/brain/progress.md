@@ -31,3 +31,18 @@ API: `npm run api:dev` (:3100); web: `npm run web:dev`. Lint `npm run lint`, for
 - Verified so far: API build/typecheck, 99/99 integration tests across 8 files, API lint and touched-file formatting. Environment validation, CORS allowlist, and LAN PNG/SVG QR coverage added. Angular production build passes; initial JS/CSS approximately 441 KB raw / 106 KB estimated transfer, within its 500 KB warning budget.
 - Final browser journey, Angular test totals, whole-repository lint/format, and disconnected-external-network checks are pending in this entry; historical M2/M3 results above are not evidence for this pass. No physical phone scan has yet been verified.
 - Next priorities: finish current verification, then account recovery, safe CSV export, and staff invitation/assignment/inbox design. Staff incidents, replies, notification delivery/preferences, locations, AI prompts, benchmarks, SMS, and billing remain future work.
+
+## M-ADMIN
+Implemented platform administration; see [admin](admin.md) for access provisioning, routes, security decisions, schema/index changes and limits. Source: API `modules/admin/*`, web `features/admin/*`, shared `record-details.ts`. Reuses AppShell, business editor and questionnaire preview. Existing tenant membership remains mandatory even for SUPER_ADMIN on normal business endpoints. Account/session checks now apply immediately to private requests. Moderation blocks member access and public forms. No production environment changes or automatic privilege grants.
+
+- Fixed Super Admin landing redirects: root, guest pages and onboarding deep links now resolve to `/admin`; stale login return URLs cannot trigger business onboarding. Added routing/login regression coverage; normal tenant onboarding remains enforced.
+
+- Refined shared admin tables: compact headers/rows, owner/email hierarchy, combined business status badges, aligned counts/dates and inline actions. Floating row menus no longer expand table rows; keyboard/focus and confirmation regression tests added.
+
+- Fixed business-detail Actions dropdown layering: its toolbar now has an explicit elevated stacking context, keeping the dropdown above later isolated detail cards.
+
+- Fixed admin action gaps: added platform/business role changes, block/unblock aliases, other-admin management with self-lockout protection, and membership removal/role/status controls from both UI entry points. Versioned access/refresh revocation rejects old and racing refresh sessions. Serialized audited mutations preserve last owner and active admin under concurrency; legacy disabled businesses reactivate without bypassing onboarding.
+
+- Verification: final full API suite 168/168 across 13 files and ChromeHeadless suite 131/131. Both production builds, API typecheck, lint, formatting and diff whitespace checks passed. All test mutations use gdv_test, not application/production data.
+
+- Reworked the Super Admin dashboard presentation with four primary totals, business-health progress, feedback rating and empty state, contextual access restrictions, and grouped forms/customer/reward metrics. AdminDashboard reuses existing cards, icons, colors and API data. Dashboard rendering/filter links and zero-data calculations are covered by tests.

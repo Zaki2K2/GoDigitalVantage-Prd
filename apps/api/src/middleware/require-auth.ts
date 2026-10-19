@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { ACCESS_COOKIE } from '../modules/auth/cookies';
-import { verifyAccessToken } from '../modules/auth/tokens';
+import { User } from '../modules/auth/user.model';
+import { accessIssuedAt, accessSessionVersion, verifyAccessToken } from '../modules/auth/tokens';
 import { unauthorized } from '../shared/errors';
 
 declare global {
@@ -14,10 +15,30 @@ declare global {
 }
 
 /** Verifies the httpOnly access cookie and attaches `req.auth`. */
-export const requireAuth: RequestHandler = (req, _res, next) => {
+export const requireAuth: RequestHandler = async (req, _res, next) => {
   const cookie: unknown = req.cookies?.[ACCESS_COOKIE];
   const userId = verifyAccessToken(typeof cookie === 'string' ? cookie : undefined);
-  if (!userId) return next(unauthorized('Authentication required'));
-  req.auth = { userId };
-  next();
+  if (!userId || !/^[a-f\d]{24}$/i.test(userId))
+    return next(unauthorized('Authentication required'));
+  try {
+    const user = await User.findById(userId, {
+      status: 1,
+      sessionsRevokedAt: 1,
+      sessionVersion: 1,
+    }).lean();
+    if (
+      !user ||
+      user.status !== 'active' ||
+      (accessSessionVersion(String(cookie)) ?? 0) !== (user.sessionVersion ?? 0) ||
+      (accessSessionVersion(String(cookie)) === null &&
+        user.sessionsRevokedAt &&
+        accessIssuedAt(String(cookie)) <= user.sessionsRevokedAt.getTime())
+    ) {
+      return next(unauthorized('Session unavailable'));
+    }
+    req.auth = { userId: userId.toLowerCase() };
+    next();
+  } catch (err) {
+    next(err);
+  }
 };

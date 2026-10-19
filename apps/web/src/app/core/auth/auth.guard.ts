@@ -12,5 +12,20 @@ export const authGuard: CanActivateFn = (_route, state) => {
 /** Keeps signed-in users off the login/register pages. */
 export const guestGuard: CanActivateFn = () => {
   const auth = inject(AuthService);
-  return auth.isAuthenticated() ? inject(Router).createUrlTree(['/']) : true;
+  return auth.isAuthenticated()
+    ? inject(Router).createUrlTree([auth.user()?.platformRole === 'SUPER_ADMIN' ? '/admin' : '/'])
+    : true;
+};
+
+/** UI convenience only: the API independently checks current platform privileges. */
+export const adminGuard: CanActivateFn = () => {
+  const auth = inject(AuthService);
+  return auth.user()?.platformRole === 'SUPER_ADMIN' || inject(Router).createUrlTree(['/']);
+};
+
+/** Platform administrators do not create a tenant through the business onboarding wizard. */
+export const businessUserGuard: CanActivateFn = () => {
+  return inject(AuthService).user()?.platformRole === 'SUPER_ADMIN'
+    ? inject(Router).createUrlTree(['/admin'])
+    : true;
 };

@@ -5,8 +5,8 @@ import { env } from '../../config/env';
 export const ACCESS_TTL_SECONDS = 15 * 60;
 export const REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60;
 
-export function signAccessToken(userId: string): string {
-  return jwt.sign({}, env.JWT_ACCESS_SECRET, {
+export function signAccessToken(userId: string, sessionVersion = 0): string {
+  return jwt.sign({ sessionIssuedAt: Date.now(), sessionVersion }, env.JWT_ACCESS_SECRET, {
     algorithm: 'HS256',
     subject: userId,
     expiresIn: ACCESS_TTL_SECONDS,
@@ -31,4 +31,22 @@ export function newOpaqueToken(): string {
 
 export function hashToken(token: string): string {
   return createHmac('sha256', env.JWT_REFRESH_SECRET).update(token).digest('hex');
+}
+
+/** Millisecond session boundary; legacy JWTs fall back to their issued-at second. */
+export function accessIssuedAt(token: string): number {
+  const payload = jwt.decode(token);
+  if (!payload || typeof payload === 'string') return 0;
+  return typeof payload['sessionIssuedAt'] === 'number'
+    ? payload['sessionIssuedAt']
+    : (payload.iat ?? 0) * 1000;
+}
+
+/** Missing versions identify pre-version sessions; their timestamp cutoff still applies. */
+export function accessSessionVersion(token: string): number | null {
+  const payload = jwt.decode(token);
+  if (!payload || typeof payload === 'string') return null;
+  return Number.isSafeInteger(payload['sessionVersion']) && payload['sessionVersion'] >= 0
+    ? payload['sessionVersion']
+    : null;
 }

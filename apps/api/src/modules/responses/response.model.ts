@@ -72,4 +72,5 @@ responseSchema.index({ businessId: 1, idempotencyKey: 1 }, { unique: true });
 responseSchema.index({ businessId: 1, submittedAt: -1 });
 responseSchema.index({ businessId: 1, contactId: 1, submittedAt: -1 });
 
+responseSchema.index({ submittedAt: -1, _id: -1 });
 export const Response = model<ResponseDoc>('Response', responseSchema);

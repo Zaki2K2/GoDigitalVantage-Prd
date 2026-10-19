@@ -51,6 +51,10 @@ export class LoginPage {
   /** Only allow same-app relative paths to prevent open redirects. */
   private safeReturnUrl(): string {
     const url = this.route.snapshot.queryParamMap.get('returnUrl');
-    return url && url.startsWith('/') && !url.startsWith('//') ? url : '/';
+    const safe = url && url.startsWith('/') && !url.startsWith('//');
+    if (this.auth.user()?.platformRole === 'SUPER_ADMIN') {
+      return safe && /^\/admin(?:[/?#]|$)/.test(url) ? url : '/admin';
+    }
+    return safe ? url : '/';
   }
 }

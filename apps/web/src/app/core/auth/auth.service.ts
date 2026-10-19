@@ -8,6 +8,7 @@ export interface AuthUser {
   fullName: string;
   email: string;
   status: string;
+  platformRole?: 'USER' | 'SUPER_ADMIN';
 }
 
 interface UserResponse {

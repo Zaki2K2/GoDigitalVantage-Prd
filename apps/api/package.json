@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "admin:grant": "tsx src/modules/admin/grant.ts"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

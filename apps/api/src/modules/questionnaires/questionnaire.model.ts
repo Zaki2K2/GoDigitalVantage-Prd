@@ -30,6 +30,7 @@ export interface ContentData {
 export interface QuestionnaireDoc {
   _id: Types.ObjectId;
   businessId: Types.ObjectId;
+  adminArchived?: boolean;
   draft: ContentData;
   draftRevision: number;
   publishedRevision: number;
@@ -71,6 +72,7 @@ const contentFields = {
 const questionnaireSchema = new Schema<QuestionnaireDoc>(
   {
     businessId: { type: Schema.Types.ObjectId, ref: 'Business', required: true, unique: true },
+    adminArchived: { type: Boolean, default: false },
     draft: { type: new Schema<ContentData>(contentFields, { _id: false }), required: true },
     /** Bumped on every draft save; used for optimistic concurrency. */
     draftRevision: { type: Number, default: 1 },
@@ -98,5 +100,6 @@ const versionSchema = new Schema<VersionDoc>(
 );
 versionSchema.index({ questionnaireId: 1, version: 1 }, { unique: true });
 
+questionnaireSchema.index({ createdAt: -1, _id: -1 });
 export const Questionnaire = model<QuestionnaireDoc>('Questionnaire', questionnaireSchema);
 export const QuestionnaireVersion = model<VersionDoc>('QuestionnaireVersion', versionSchema);

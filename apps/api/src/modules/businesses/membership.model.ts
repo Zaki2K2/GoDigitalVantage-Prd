@@ -7,6 +7,7 @@ const membershipSchema = new Schema(
   {
     businessId: { type: Schema.Types.ObjectId, ref: 'Business', required: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    status: { type: String, enum: ['active', 'disabled'], default: 'active' },
     role: { type: String, enum: MEMBERSHIP_ROLES, required: true },
   },
   { timestamps: true, collection: 'business_memberships' },

@@ -44,6 +44,7 @@ contactSchema.index(
 );
 contactSchema.index({ businessId: 1, lastResponseAt: -1 });
 
+contactSchema.index({ createdAt: -1, _id: -1 });
 export const Contact = model<ContactDoc>('Contact', contactSchema);
 
 export interface ConsentEventDoc {

@@ -25,3 +25,8 @@ All tenant docs carry `businessId`; indexes lead with it. Status: `users`, `refr
 | rewards ✅ | businessId, ruleId+ruleName, incidentId, responseId, contactId?, code `GDV-XXXX-XXXX`, status pending_approval/issued/redeemed/cancelled/rejected ("expired" is derived from expiresAt), rule snapshot (discount, minSpend, maxDiscount, currency, validityDays, terms), identityHash (HMAC), issuedAt, expiresAt, deliveries[{method,at,byUserId}] (manual shares), redemption{at,byUserId,requestId,orderTotal?,discountApplied?} | unique (businessId,responseId); unique (businessId,code); (businessId,status,createdAt); (businessId,identityHash,createdAt) |
 | reward_quotas ✅ | key, count: atomic caps (`tot:<rule>`, `day:<rule>:<date>`, `cd:<biz>:<identity>:<window>`) | unique key |
 | reward_audit ✅ | businessId, ruleId?, rewardId?, incidentId?, actorUserId?, action, details, at (insert-only) | (businessId,at); (businessId,rewardId,at) |
+
+## M-ADMIN
+users adds platformRole (USER/SUPER_ADMIN) and sessionsRevokedAt; businesses adds adminState; business_memberships adds status; questionnaires adds adminArchived. All preserve safe legacy defaults. admin_audit stores immutable operation identity/intent and outcome (pending/completed/failed), indexed by time, business/time, actor/time. Global timestamp/_id indexes support platform lists. See [admin](admin.md).
+
+- users.sessionVersion and refresh_tokens.sessionVersion default to 0, with version in signed access tokens. admin_mutation_locks has a unique string _id scope, token referencing admin_audit intent and acquiredAt; no TTL. Business owner/member changes preserve a remaining active owner and keep primary ownerUserId consistent.

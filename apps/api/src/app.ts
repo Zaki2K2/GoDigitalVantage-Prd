@@ -1,3 +1,4 @@
+import { createAdminRouter } from './modules/admin/admin.routes';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -37,6 +38,7 @@ export function createApp() {
     '/api/v1',
     csrfProtection,
     createAuthRouter(),
+    createAdminRouter(),
     createBusinessRouter(),
     createQuestionnaireRouter(),
     createQrRouter(),

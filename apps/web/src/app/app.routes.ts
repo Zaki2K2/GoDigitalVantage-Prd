@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './core/auth/auth.guard';
+import { authGuard, guestGuard, adminGuard, businessUserGuard } from './core/auth/auth.guard';
 import { onboardedGuard } from './core/business/onboarded.guard';
 
 export const routes: Routes = [
@@ -30,9 +30,26 @@ export const routes: Routes = [
   },
   {
     path: 'onboarding',
-    canActivate: [authGuard],
+    canActivate: [authGuard, businessUserGuard],
     loadChildren: () =>
       import('./features/onboarding/onboarding.routes').then((m) => m.onboardingRoutes),
+  },
+  {
+    path: 'admin',
+    canActivate: [authGuard, adminGuard],
+    data: { admin: true },
+    loadComponent: () => import('./features/shell/app-shell').then((m) => m.AppShell),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+      {
+        path: ':section/:id',
+        loadComponent: () => import('./features/admin/admin.page').then((m) => m.AdminPage),
+      },
+      {
+        path: ':section',
+        loadComponent: () => import('./features/admin/admin.page').then((m) => m.AdminPage),
+      },
+    ],
   },
   {
     // Dashboard shell: only reachable once the server reports onboarding complete.

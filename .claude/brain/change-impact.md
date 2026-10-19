@@ -21,3 +21,7 @@
 - `submitResponse` signature (client ip/UA) -> identity hash for anonymous cooldown; behind a proxy set `trust proxy` or all anonymous customers share one cooldown identity.
 - Code format/normalisation (`newCode`, `normalizeCode`) -> verify/redeem UI input, search, customer card.
 - Any change to the shell nav/routes/icon sprite must keep the `/rewards` entries (another session edits these files too).
+
+- Platform role/session cutoff or business/member/form moderation changes -> `modules/admin/*`, auth middleware, membership lookup, public form resolution, admin guard/shell, normal auth/business/form/QR tests. See [admin](admin.md).
+
+- Session version -> auth issuance/refresh, requireAuth, admin block/revoke/role actions, auth and admin permission tests. Business owner role/removal -> admin mutation locks, primary owner pointer, live membership lookup and tenant/concurrency tests.

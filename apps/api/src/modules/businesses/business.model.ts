@@ -6,6 +6,7 @@ export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 const businessSchema = new Schema(
   {
+    adminState: { type: String, enum: ['active', 'suspended', 'archived'], default: 'active' },
     ownerUserId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     createRequestId: { type: String, required: true },
     name: { type: String, required: true, trim: true, maxlength: 120 },
@@ -26,8 +27,10 @@ const businessSchema = new Schema(
   },
   { timestamps: true, collection: 'businesses' },
 );
+businessSchema.index({ adminState: 1, createdAt: -1 });
 // Repeated submissions of the same create request resolve to one business.
 businessSchema.index({ ownerUserId: 1, createRequestId: 1 }, { unique: true });
 
 export type BusinessDoc = InferSchemaType<typeof businessSchema> & { _id: Types.ObjectId };
+businessSchema.index({ createdAt: -1, _id: -1 });
 export const Business = model('Business', businessSchema);
