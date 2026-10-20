@@ -50,13 +50,14 @@ export function createApp(rewards = new InstantRewardsService()) {
     csrfProtection,
     createAuthRouter(),
     createInstantRewardRouter(rewards),
+    // Campaign routes own their guards; handle them before the broad /admin middleware.
+    createCampaignRouter(),
     createAdminRouter(),
     createBusinessRouter(),
     createQuestionnaireRouter(),
     createQrRouter(),
     createCrmRouter(),
     createRewardRouter(),
-    createCampaignRouter(),
   );
 
   app.use(notFoundHandler);

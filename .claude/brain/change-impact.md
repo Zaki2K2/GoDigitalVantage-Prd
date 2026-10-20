@@ -44,3 +44,5 @@ Campaign changes must preserve tenant audience/cursor intersection, unique recip
 
 
 Shared dropdowns: changing AppSelect/SelectControl/ActionMenu/DropdownPanel affects all 28 selects, editable BusinessForm suggestions, Admin/Campaign/account menus and modal focus. Check shared dropdown regressions plus existing questionnaire type changes, reward numeric ngValue, business switching, consent, filters/sorting and Admin/Campaign confirmations. See [dropdowns](dropdowns.md).
+
+Mongo connection cache/pool or Vercel entry/config changes -> serverless, db-cache, performance, auth, tenant/moderation and campaign tests. Preserve live permission reads and explicit production migrations. Timing logs must remain free of request/DB values. See [performance](performance.md) for measured baseline and account-access limitations.

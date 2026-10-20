@@ -62,6 +62,10 @@ export const envSchema = z
     RESEND_WEBHOOK_SECRET: optionalSecret(16),
     MARKETING_UNSUBSCRIBE_SECRET: optionalSecret(32),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    PERFORMANCE_LOGGING: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
     PORT: z.coerce.number().int().positive().default(3000),
     MONGODB_URI: z.string().min(1),
     CORS_ORIGIN: z.string().min(1),

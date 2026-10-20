@@ -41,3 +41,7 @@ Network Access must allow Vercel (`0.0.0.0/0`); use a dedicated least-privilege 
 ## Transactional email
 
 Follow [Resend email configuration](email-resend.md) for exact API environment variables, sender aliases, verified-domain gate, signed webhook setup and enablement checks. Keep EMAIL_ENABLED=false until verified/configured. No email secrets belong in the web Vercel project.
+
+## Performance diagnostics
+
+See [production performance investigation](performance-vercel.md) for measured baselines, region/Fluid/log checks and post-deployment validation. `PERFORMANCE_LOGGING=true` enables safe API timing logs and startup/connect Server-Timing; default false. Confirm Atlas's actual deployed primary region before selecting a Vercel function region. Production disables automatic collection/index creation. The web config now gives immutable browser caching only to hashed Angular JS/CSS; HTML and APIs retain their existing behavior.

@@ -182,16 +182,6 @@ export async function list(resource: Resource, q: ListQuery) {
   const ownerIds = items.flatMap((item: Record<string, unknown>) =>
     item['ownerUserId'] ? [item['ownerUserId']] : [],
   );
-  const [businesses, owners] = await Promise.all([
-    mongoose.connection
-      .collection('businesses')
-      .find({ _id: { $in: businessIds } }, { projection: { name: 1 } })
-      .toArray(),
-    mongoose.connection
-      .collection('users')
-      .find({ _id: { $in: ownerIds } }, { projection: { fullName: 1, emailLowercase: 1 } })
-      .toArray(),
-  ]);
   const pageIds = items.map((item: Record<string, unknown>) => item['_id']);
   const groupCounts = async (collection: string, field: string) =>
     mongoose.connection
@@ -201,18 +191,33 @@ export async function list(resource: Resource, q: ListQuery) {
         { $group: { _id: `$${field}`, count: { $sum: 1 } } },
       ])
       .toArray();
-  const counts =
-    resource === 'businesses'
-      ? await Promise.all(
-          ['business_memberships', 'questionnaires', 'responses'].map((name) =>
-            groupCounts(name, 'businessId'),
-          ),
+  const countQueries = !pageIds.length
+    ? []
+    : resource === 'businesses'
+      ? ['business_memberships', 'questionnaires', 'responses'].map((name) =>
+          groupCounts(name, 'businessId'),
         )
       : resource === 'users'
-        ? [await groupCounts('business_memberships', 'userId')]
+        ? [groupCounts('business_memberships', 'userId')]
         : resource === 'forms'
-          ? [await groupCounts('responses', 'questionnaireId')]
+          ? [groupCounts('responses', 'questionnaireId')]
           : [];
+  // Page enrichment and counts share no dependency; never issue empty $in lookups.
+  const [businesses, owners, counts] = await Promise.all([
+    businessIds.length
+      ? mongoose.connection
+          .collection('businesses')
+          .find({ _id: { $in: businessIds } }, { projection: { name: 1 } })
+          .toArray()
+      : Promise.resolve([]),
+    ownerIds.length
+      ? mongoose.connection
+          .collection('users')
+          .find({ _id: { $in: ownerIds } }, { projection: { fullName: 1, emailLowercase: 1 } })
+          .toArray()
+      : Promise.resolve([]),
+    Promise.all(countQueries),
+  ]);
   const countFor = (group: number, item: Record<string, unknown>) =>
     counts[group]?.find((entry) => String(entry._id) === String(item['_id']))?.['count'] ?? 0;
   const data = items.map((item: Record<string, unknown>) => ({
@@ -252,16 +257,19 @@ export async function detail(resource: Resource, id: string) {
   if (resource === 'businesses') {
     const businessId = item._id;
     const names = ['business_memberships', 'questionnaires', 'responses', 'contacts', 'rewards'];
-    const values = await Promise.all(
-      names.map((name) => mongoose.connection.collection(name).countDocuments({ businessId })),
-    );
+    const [values, owner] = await Promise.all([
+      Promise.all(
+        names.map((name) => mongoose.connection.collection(name).countDocuments({ businessId })),
+      ),
+      mongoose.connection
+        .collection('users')
+        .findOne(
+          { _id: item['ownerUserId'] },
+          { projection: { fullName: 1, emailLowercase: 1, status: 1 } },
+        ),
+    ]);
     item['counts'] = Object.fromEntries(names.map((name, index) => [name, values[index]]));
-    item['owner'] = await mongoose.connection
-      .collection('users')
-      .findOne(
-        { _id: item['ownerUserId'] },
-        { projection: { fullName: 1, emailLowercase: 1, status: 1 } },
-      );
+    item['owner'] = owner;
   }
   if (resource === 'users')
     item['businessCount'] = await mongoose.connection

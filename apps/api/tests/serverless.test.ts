@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import mongoose from 'mongoose';
@@ -81,6 +81,34 @@ describe('Vercel handler', () => {
     const missing = await request(handler).get('/api/v1/nope');
     expect(missing.status).toBe(404);
     expect(missing.body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('emits opt-in route-template timings without logging secrets or request input', async () => {
+    const previous = process.env['PERFORMANCE_LOGGING'];
+    const log = vi.spyOn(console, 'info').mockImplementation(() => {});
+    try {
+      process.env['PERFORMANCE_LOGGING'] = 'true';
+      const response = await request(handler).get('/api/v1/health?token=DO_NOT_LOG');
+      expect(response.status).toBe(200);
+      expect(response.headers['server-timing']).toMatch(
+        /startup;dur=\d+\.\d, mongo_connect;dur=\d+\.\d/,
+      );
+      const metrics = JSON.parse(String(log.mock.calls[0]?.[0]));
+      expect(metrics).toMatchObject({
+        event: 'api_performance',
+        route: '/api/v1/health',
+        status: 200,
+        dbState: 1,
+      });
+      for (const key of ['authMs', 'dbMs', 'dbOps']) expect(metrics[key]).toBeGreaterThanOrEqual(0);
+      expect(typeof metrics.coldStart).toBe('boolean');
+      expect(metrics.totalMs).toBeGreaterThanOrEqual(0);
+      expect(JSON.stringify(log.mock.calls)).not.toContain('DO_NOT_LOG');
+    } finally {
+      if (previous === undefined) delete process.env['PERFORMANCE_LOGGING'];
+      else process.env['PERFORMANCE_LOGGING'] = previous;
+      log.mockRestore();
+    }
   });
 
   it('keeps auth cookies and CSRF working through the handler', async () => {

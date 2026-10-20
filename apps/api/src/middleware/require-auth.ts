@@ -3,6 +3,7 @@ import { ACCESS_COOKIE } from '../modules/auth/cookies';
 import { User } from '../modules/auth/user.model';
 import { accessIssuedAt, accessSessionVersion, verifyAccessToken } from '../modules/auth/tokens';
 import { unauthorized } from '../shared/errors';
+import { timeAuth } from '../shared/perf';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -21,11 +22,9 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
   if (!userId || !/^[a-f\d]{24}$/i.test(userId))
     return next(unauthorized('Authentication required'));
   try {
-    const user = await User.findById(userId, {
-      status: 1,
-      sessionsRevokedAt: 1,
-      sessionVersion: 1,
-    }).lean();
+    const user = await timeAuth(async () =>
+      User.findById(userId, { status: 1, sessionsRevokedAt: 1, sessionVersion: 1 }).lean(),
+    );
     if (
       !user ||
       user.status !== 'active' ||

@@ -1,5 +1,6 @@
 import type { RequestHandler } from 'express';
 import { forbidden, unauthorized } from '../shared/errors';
+import { timeAuth } from '../shared/perf';
 
 export type MembershipLookup = (
   userId: string,
@@ -20,7 +21,7 @@ export function requireBusinessAccess(lookup: MembershipLookup): RequestHandler 
       if (typeof businessId !== 'string' || !/^[a-f\d]{24}$/i.test(businessId)) {
         throw forbidden('No access to this business');
       }
-      const membership = await lookup(req.auth.userId, businessId);
+      const membership = await timeAuth(() => lookup(req.auth!.userId, businessId));
       if (!membership) throw forbidden('No access to this business');
       req.tenant = { businessId, role: membership.role };
       next();

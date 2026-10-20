@@ -36,9 +36,12 @@ export function toBusinessDto(b: BusinessDoc, role: MembershipRole) {
 
 /** Membership query used by `requireBusinessAccess`. */
 export async function findMembership(userId: string, businessId: string) {
-  const m = await BusinessMembership.findOne({ userId, businessId }).lean();
+  // Both reads are independent. Keep every live authorization check, but pay one network round.
+  const [m, b] = await Promise.all([
+    BusinessMembership.findOne({ userId, businessId }).lean(),
+    Business.findById(businessId, { adminState: 1, status: 1 }).lean(),
+  ]);
   if (!m || m.status === 'disabled') return null;
-  const b = await Business.findById(businessId, { adminState: 1, status: 1 }).lean();
   return b && b.status !== 'disabled' && (!b.adminState || b.adminState === 'active')
     ? { role: m.role }
     : null;
