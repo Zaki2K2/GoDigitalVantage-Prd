@@ -2,6 +2,8 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Types, type QueryFilter } from 'mongoose';
 import { z } from 'zod';
 import { env } from '../../config/env';
+import { Campaign } from '../campaigns/campaign.model';
+import { RewardOrderClaim } from './reward.model';
 import { AppError, forbidden, notFound } from '../../shared/errors';
 import { escapeRegex, OBJECT_ID, pageMeta } from '../../shared/pagination';
 import { lastDays } from '../analytics/dashboard.service';
@@ -69,7 +71,11 @@ export interface Client {
   userAgent: string;
 }
 
-function identityHash(businessId: Types.ObjectId, contact: ContactDoc | null, client: Client) {
+export function identityHash(
+  businessId: Types.ObjectId,
+  contact: ContactDoc | null,
+  client: Client,
+) {
   const key = contact
     ? contact.phoneE164
       ? `p:${contact.phoneE164}`
@@ -155,9 +161,10 @@ export function staffView(r: RewardDoc, contacts: Map<string, Brief>, now = new 
     code: r.code,
     status: effectiveStatus(r, now),
     ruleName: r.ruleName,
-    ruleId: String(r.ruleId),
+    campaignId: r.campaignId ? String(r.campaignId) : null,
+    ruleId: r.ruleId ? String(r.ruleId) : null,
     incidentId: r.incidentId ? String(r.incidentId) : null,
-    responseId: String(r.responseId),
+    responseId: r.responseId ? String(r.responseId) : null,
     contact: r.contactId ? (contacts.get(String(r.contactId)) ?? null) : null,
     discount: discountOf(r),
     terms: r.terms,
@@ -304,8 +311,22 @@ async function reserve(key: string, max: number): Promise<boolean> {
 const release = (key: string) => RewardQuota.updateOne({ key }, { $inc: { count: -1 } });
 
 async function newRewardDoc(
-  rule: RewardRuleDoc,
-  base: Pick<RewardDoc, 'businessId' | 'incidentId' | 'responseId' | 'contactId' | 'identityHash'>,
+  rule: Pick<
+    RewardRuleDoc,
+    | '_id'
+    | 'name'
+    | 'discountType'
+    | 'discountValue'
+    | 'currency'
+    | 'minSpend'
+    | 'maxDiscount'
+    | 'validityDays'
+    | 'terms'
+  >,
+  base: Pick<
+    RewardDoc,
+    'businessId' | 'incidentId' | 'responseId' | 'contactId' | 'identityHash'
+  > & { campaignRecipientId?: Types.ObjectId },
   status: RewardDoc['status'],
   now: Date,
   actor: string | null,
@@ -315,7 +336,8 @@ async function newRewardDoc(
       const issued = status === 'issued';
       const doc = await Reward.create({
         ...base,
-        ruleId: rule._id,
+        ruleId: base.campaignRecipientId ? null : rule._id,
+        campaignId: base.campaignRecipientId ? rule._id : null,
         ruleName: rule.name,
         code: newCode(),
         status,
@@ -339,6 +361,41 @@ async function newRewardDoc(
     }
   }
   throw new Error('Could not allocate a reward code');
+}
+
+/** Campaign issuance uses the same immutable terms, codes, expiry and redemption lifecycle. */
+export async function issueCampaignReward(
+  campaignId: Types.ObjectId,
+  recipientId: Types.ObjectId,
+  contact: ContactDoc,
+  name: string,
+  offer: import('../campaigns/campaign.domain').CampaignInput['offer'],
+  now: Date,
+) {
+  const filter = { businessId: contact.businessId, campaignRecipientId: recipientId };
+  const existing = await Reward.findOne(filter).lean();
+  if (existing) return existing;
+  try {
+    return await newRewardDoc(
+      { _id: campaignId, name, ...offer },
+      {
+        businessId: contact.businessId,
+        incidentId: null,
+        responseId: null,
+        contactId: contact._id,
+        identityHash: identityHash(contact.businessId, contact, { ip: '', userAgent: '' }),
+        campaignRecipientId: recipientId,
+      },
+      'issued',
+      now,
+      null,
+    );
+  } catch (error) {
+    if (!isDup(error)) throw error;
+    const winner = await Reward.findOne(filter).lean();
+    if (!winner) throw error;
+    return winner;
+  }
 }
 
 /**
@@ -664,11 +721,18 @@ export async function redeem(
   raw: string,
   requestId: string,
   orderTotal?: number,
+  orderId?: string,
 ) {
   const r = await byCode(businessId, raw);
   const now = new Date();
   if (r.status === 'redeemed') {
     if (r.redemption?.requestId === requestId) {
+      if (r.campaignId && r.redemption.orderId !== orderId?.trim())
+        throw new AppError(
+          409,
+          'ORDER_REWARD_CONFLICT',
+          'Retry must use the original order reference',
+        );
       return { duplicate: true, reward: await oneView(businessId, r) };
     }
     throw new AppError(409, 'REWARD_ALREADY_REDEEMED', 'This reward was already redeemed', {
@@ -676,6 +740,22 @@ export async function redeem(
     });
   }
   const status = effectiveStatus(r, now);
+  if (r.campaignId) {
+    const campaign = await Campaign.findOne({ _id: r.campaignId, businessId }).lean();
+    const business = await Business.exists({
+      _id: businessId,
+      status: 'active',
+      adminState: { $nin: ['suspended', 'archived'] },
+    });
+    if (!campaign || campaign.status === 'cancelled' || !business)
+      throw new AppError(409, 'REWARD_NOT_REDEEMABLE', 'Campaign or business is unavailable');
+    if (!orderId?.trim())
+      throw new AppError(
+        422,
+        'ORDER_REQUIRED',
+        'Campaign rewards require the actual order reference',
+      );
+  }
   if (status === 'expired') throw new AppError(409, 'REWARD_EXPIRED', 'This reward has expired');
   if (status !== 'issued') {
     throw new AppError(409, 'REWARD_NOT_REDEEMABLE', `This reward is ${status.replace('_', ' ')}`);
@@ -689,6 +769,25 @@ export async function redeem(
     );
   }
   // Single-use guarantee: only one concurrent request can flip issued -> redeemed.
+  if (orderId) {
+    const order = { businessId: oid(businessId), orderId: orderId.trim() };
+    try {
+      await RewardOrderClaim.updateOne(
+        order,
+        { $setOnInsert: { rewardId: r._id, requestId, at: now } },
+        { upsert: true },
+      );
+    } catch (error) {
+      if (!isDup(error)) throw error;
+    }
+    const claim = await RewardOrderClaim.findOne(order).lean();
+    if (!claim || String(claim.rewardId) !== String(r._id) || claim.requestId !== requestId)
+      throw new AppError(
+        409,
+        'ORDER_REWARD_CONFLICT',
+        'An offer is already reserved or redeemed for this order',
+      );
+  }
   const updated = await Reward.findOneAndUpdate(
     { _id: r._id, businessId, status: 'issued', expiresAt: { $gt: now } },
     {
@@ -698,6 +797,7 @@ export async function redeem(
           at: now,
           byUserId: oid(userId),
           requestId,
+          orderId: orderId?.trim() ?? null,
           orderTotal: orderTotal ?? null,
           discountApplied: discountApplied(r, orderTotal),
         },

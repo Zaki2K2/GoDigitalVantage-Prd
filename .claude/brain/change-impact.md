@@ -37,3 +37,10 @@ Email provider migration affects env validation/examples, modules/email, reward 
 ## Restricted email testing
 
 Restricted email testing changes env schema/examples and shared adapter only, plus provider/reward safety tests. Shared templates, signed webhook routes and reward security remain unchanged. Production mode retains verified-domain gate; see docs/specs/email-provider.md and docs/email-resend.md.
+
+## Campaign Management Engine
+
+Campaign changes must preserve tenant audience/cursor intersection, unique recipient/window keys, provider payload/idempotency stability, durable locks, immutable scheduled configuration and existing reward redemption. Required production migration/configuration: [campaigns](campaigns.md).
+
+
+Shared dropdowns: changing AppSelect/SelectControl/ActionMenu/DropdownPanel affects all 28 selects, editable BusinessForm suggestions, Admin/Campaign/account menus and modal focus. Check shared dropdown regressions plus existing questionnaire type changes, reward numeric ngValue, business switching, consent, filters/sorting and Admin/Campaign confirmations. See [dropdowns](dropdowns.md).

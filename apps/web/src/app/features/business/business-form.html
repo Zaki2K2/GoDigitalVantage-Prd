@@ -25,6 +25,7 @@
         id="category"
         type="text"
         formControlName="category"
+        appSelect
         list="category-options"
         [class.invalid]="invalid('category')"
         [attr.aria-invalid]="invalid('category')"
@@ -86,6 +87,7 @@
         id="timezone"
         type="text"
         formControlName="timezone"
+        appSelect
         list="timezone-options"
         [class.invalid]="invalid('timezone')"
         [attr.aria-invalid]="invalid('timezone')"

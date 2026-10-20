@@ -1,0 +1,140 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+.campaign-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.campaign-filters .field {
+  margin: 0;
+  min-width: 180px;
+  flex: 1;
+}
+.campaign-grid,
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 1rem;
+}
+.campaign-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+}
+.campaign-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+}
+.campaign-card h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+.campaign-offer {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+}
+.campaign-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding-top: 1.5rem;
+  margin-top: auto;
+}
+.campaign-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  background: rgb(3 7 18 / 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.campaign-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 880px;
+  max-height: calc(100dvh - 2rem);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 1rem;
+  box-shadow: 0 24px 64px #0003;
+  overflow: hidden;
+}
+.campaign-dialog-header,
+.campaign-dialog-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+.campaign-dialog-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.campaign-dialog-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+.campaign-dialog-footer {
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+  flex-wrap: wrap;
+}
+.template-card {
+  border: 1px solid var(--line);
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+}
+.template-icon {
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+  background: var(--surface-soft);
+  width: fit-content;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+}
+.advanced {
+  margin: 1rem 0;
+}
+.advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.75rem 0;
+}
+.campaign-dialog dt {
+  color: var(--color-gray-500, #667085);
+  font-size: 0.875rem;
+  text-transform: capitalize;
+}
+.campaign-dialog dd {
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 540px) {
+  .campaign-overlay {
+    padding: 0.5rem;
+  }
+  .campaign-dialog {
+    max-height: calc(100dvh - 1rem);
+  }
+  .campaign-dialog-header,
+  .campaign-dialog-body,
+  .campaign-dialog-footer {
+    padding: 1rem;
+  }
+  .campaign-dialog-footer .btn {
+    padding: 0.65rem 0.8rem;
+  }
+}

@@ -1,3 +1,4 @@
+import { AppSelect } from '../../shared/app-select';
 import { Component, effect, inject, input, output } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Business, BusinessInput } from '../../core/business/business.service';
@@ -26,7 +27,7 @@ function timezones(): string[] {
 /** Business profile form shared by onboarding step 1 and the profile edit screen. */
 @Component({
   selector: 'app-business-form',
-  imports: [ReactiveFormsModule],
+  imports: [AppSelect, ReactiveFormsModule],
   templateUrl: './business-form.html',
 })
 export class BusinessForm {

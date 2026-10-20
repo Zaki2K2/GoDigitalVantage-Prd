@@ -10,6 +10,11 @@ export interface ContactDoc {
   fullName: string | null;
   emailLowercase: string | null;
   phoneE164: string | null;
+  birthday: string | null;
+  anniversary: string | null;
+  tags: string[];
+  segment: string | null;
+  loyaltyLevel: string | null;
   firstResponseAt: Date;
   lastResponseAt: Date;
   /** Latest grant time per purpose (null = never granted). Source of truth: consent_events. */
@@ -24,6 +29,11 @@ const contactSchema = new Schema<ContactDoc>(
     fullName: { type: String, default: null },
     emailLowercase: { type: String, default: null },
     phoneE164: { type: String, default: null },
+    birthday: { type: String, default: null },
+    anniversary: { type: String, default: null },
+    tags: { type: [String], default: [] },
+    segment: { type: String, default: null },
+    loyaltyLevel: { type: String, default: null },
     firstResponseAt: { type: Date, required: true },
     lastResponseAt: { type: Date, required: true },
     consent: {
@@ -43,6 +53,10 @@ contactSchema.index(
   { unique: true, partialFilterExpression: { emailLowercase: { $type: 'string' } } },
 );
 contactSchema.index({ businessId: 1, lastResponseAt: -1 });
+contactSchema.index({ businessId: 1, birthday: 1, _id: 1 });
+contactSchema.index({ businessId: 1, anniversary: 1, _id: 1 });
+contactSchema.index({ businessId: 1, tags: 1, _id: 1 });
+contactSchema.index({ businessId: 1, segment: 1, _id: 1 });
 
 contactSchema.index({ createdAt: -1, _id: -1 });
 export const Contact = model<ContactDoc>('Contact', contactSchema);

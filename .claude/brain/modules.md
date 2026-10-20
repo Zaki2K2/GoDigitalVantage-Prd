@@ -27,3 +27,7 @@ API dirs under `apps/api/src/modules/`, web dirs under `apps/web/src/app/feature
 ## Shared email provider (2026-10-19)
 
 M-EMAIL: modules/email; shared Resend transport/templates/delivery receipts; used by M-INSTANT-REWARDS. Sending remains disabled pending domain/secrets and approved deployment.
+
+## Campaign Management Engine
+
+M-CAMP: shared campaign engine (`campaigns` API/web), email worker, templates and CRM campaign profiles. Architecture, production setup and limitations: [campaigns](campaigns.md).

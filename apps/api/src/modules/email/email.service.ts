@@ -10,6 +10,7 @@ export interface EmailMessage {
   idempotencyKey: string;
   kind?: EmailKind;
   operationStartedAt?: Date;
+  unsubscribeUrl?: string;
 }
 export const SENDING_DOMAIN = 'mail.godigitalvantage.com';
 function fail(code: string, message: string): never {
@@ -48,6 +49,15 @@ const domains = z.object({
   has_more: z.boolean().optional(),
 });
 export async function sendResendEmail(email: EmailMessage): Promise<{ id: string }> {
+  if (email.unsubscribeUrl) {
+    const parsed = z.url().safeParse(email.unsubscribeUrl);
+    if (
+      !parsed.success ||
+      /[\r\n<>]/.test(email.unsubscribeUrl) ||
+      !['https:', 'http:'].includes(new URL(email.unsubscribeUrl).protocol)
+    )
+      throw new AppError(422, 'INVALID_EMAIL', 'Invalid unsubscribe URL');
+  }
   if (!env.EMAIL_ENABLED) fail('EMAIL_DISABLED', 'Email sending is disabled');
   if (env.EMAIL_TEST_MODE) {
     const allowed = env.RESEND_TEST_EMAIL?.trim().toLowerCase();
@@ -127,6 +137,14 @@ export async function sendResendEmail(email: EmailMessage): Promise<{ id: string
         subject: email.subject,
         text: email.text,
         html: email.html,
+        ...(email.unsubscribeUrl
+          ? {
+              headers: {
+                'List-Unsubscribe': `<${email.unsubscribeUrl}>`,
+                'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+              },
+            }
+          : {}),
       }),
       signal,
     });

@@ -66,3 +66,64 @@ Restricted test-mode validation: full API suite 214/214 passed (17 files, `--tes
 See [docs/qa/full-system-audit.md](../../docs/qa/full-system-audit.md). `BusinessApi.list()` now shares one request per user (3 s reuse, cleared on mutations); spec added and run (web 150/150; API 214/214; lint, prettier, build, typecheck pass; browser shows 1 request per load). Production API runs in iad1 while traffic enters at sin1 (no `regions` in `apps/api/vercel.json`); region change waits on the Atlas region. The earlier "webhook returns 403 CSRF_INVALID" note is stale: production returns 401 INVALID_WEBHOOK_SIGNATURE.
 
 Follow-up (2026-10-19): local verification recorded in the audit doc. Open: Atlas region and Vercel logs (503 root cause), production Super Admin/reward runtime checks, approved email test. Nothing pushed or deployed.
+
+## M-CAMP — Campaign Management Engine (2026-10-20)
+
+Implemented the shared tenant-scoped campaign domain, validated draft CRUD/revision/lifecycle APIs, owner/member permissions, Super Admin platform campaigns/global configuration templates and selected/all-business draft assignment. Existing shell/styles, forms/dialogs/tables, CRM reads, audit activity, discount rewards/atomic redemption and guarded email/receipt infrastructure are reused. See [campaigns](campaigns.md) for the audit, models, API contracts, execution flow, decisions and operational requirements.
+
+Business and platform screens share a six-step builder, built-in/global templates, searchable paginated business/contact selection, fresh audience estimates and explicit activation confirmation (large audience notice >=500). Existing Contacts drawer supports owner-managed birthday/anniversary/tags/segment/loyalty metadata. Listing/detail show real send/redemption metrics, execution history, recipient errors and provider delivery receipts. No opens/clicks/claims/revenue metrics are invented.
+
+Backend worker supports once/daily/weekday/weekend/monthly/yearly/birthday/anniversary/welcome/inactive rules, local timezone windows, segmentation, annual/window duplicate prevention, bounded cursor batches, offer caps, immutable provider payloads, partial retries, expired/deleted recipients/rewards and live business/creator authority checks. Durable locks fail closed on interrupted unknown operations. The index migration has a temporary uniqueness guard, explicit target-database verification and restartable behavior. No migration was run on application/production data.
+
+Final verification:
+
+- API: **240/240 tests, 18 files**, full suite (`npm --prefix apps/api test -- --testTimeout=20000`); **26 new campaign tests**.
+- Web: **157/157 ChromeHeadless tests**, full suite; **7 new campaign screen/picker tests**.
+- `npm run build`: both production builds pass; web initial bundle approximately 460 KB raw, within existing budget; no Angular build warnings in final build.
+- `npm run lint`, API typecheck (including migration script), changed-file Prettier and `git diff --check`: pass.
+- Whole-repository `npm run format:check`: reports existing formatting in untouched `apps/web/src/app/core/business/business.service.ts` and `business.service.spec.ts`; preserved outside this scope. Existing non-fatal API listener/browser fixture warnings remain.
+
+Production still requires the explicit index migration, a new CRON_SECRET, trusted scheduler calls, verified/enabled existing email configuration, and monitoring/reconciliation for interrupted operations. Source Vercel maxDuration is 60 seconds. Worker is bounded to one campaign/three emails per invocation; higher volume needs queue/dispatcher capacity. Only existing percentage/fixed discounts and email are implemented; points/free-item/custom actions, other channels, budget accounting and untracked analytics are deliberately unavailable. Email consent/unsubscribe preferences are not added and SMS consent is never treated as email consent. Full limitations and calendar/retry semantics are documented in campaigns.md.
+
+No commits, pushes, deployment, production secrets/settings, DNS or real email sends were performed.
+
+## Campaign production hardening (2026-10-20)
+
+Audited existing campaign APIs, live tenant/platform authorization, draft revisions/lifecycle, serverless worker, rewards, email/webhooks and declared indexes. Hardened without redesign or new dependencies. See [campaigns](campaigns.md) and [production setup/recovery](../../docs/campaign-production.md).
+
+Implemented explicit address-bound owner-recorded marketing consent/evidence, sticky tenant email suppression, signed scanner-safe unsubscribe confirmation and RFC 8058 POST, permanent production unsubscribe secret and actual provider headers. Initial sends and retries enforce consent/suppression; early/late bounce/complaint receipts suppress future delivery. No legacy or SMS consent is inferred as email consent; self-service opt-in/resubscribe remains outside this change.
+
+Added exclusive/parallel offer policy, tenant issuance serialization, required actual order reference for campaign redemption, unique order/reward claims and replay/order validation. Cancellation invalidates outstanding offers; redemption rechecks cancellation/business suspension. Existing non-campaign redemption remains compatible; a real POS integration is needed to enforce externally applied discounts or authenticate order references.
+
+Added bounded worker admission, retry backoff/next-attempt/error codes, durable scheduler heartbeat and Admin monitoring of configuration/index readiness, checks, locks, failures and retries. Production disables auto-indexing; approved migration explicitly disables it in every environment, provisions the lock collection, builds/verifies unique indexes and remains restartable. Execution fails closed for missing required indexes. No automatic lock takeover, force resend or data deduplication.
+
+Analytics: redemption denominator is actual issued offers; targeted conversion remains separate. Failure events deduplicate per recipient across failure types. Acceptance and confirmed delivery stay separate.
+
+Verification:
+
+- Full API suite: **254/254**, 18 files (14 additional hardening tests, including five mocked API-to-redemption campaign journeys, consent/unsubscribe, conflicts, concurrency, DST spring/fall, leap day, cancellation/suspension, monitor/auth and actual denominators).
+- Full ChromeHeadless suite: **159/159** (two additional unsubscribe/monitoring tests).
+- Final migration/provider/serverless regression: **62/62**, including a missing lock collection and repeatable readiness verification.
+- Both production builds, API typecheck including operator script, ESLint, changed-file Prettier and diff whitespace checks pass.
+- Repository-wide formatting retains the two existing warnings in untouched core/business/business.service.ts and business.service.spec.ts. Existing non-fatal test listener/QR fixture warnings remain.
+
+Operational blockers and exact Vercel/Resend/MongoDB steps are in the runbook: approved index migration; NODE_ENV=production; permanent MARKETING_UNSUBSCRIBE_SECRET; >=32-character CRON_SECRET; minute-capable scheduler/adequate capacity; verified sending domain/key and signed webhook; explicit contact consent; approved deployment and live verification. No live account configuration is asserted as verified. No production migrations, real email, deployments, secrets/DNS/provider changes, commits or pushes were performed.
+
+## Campaign table layout correction (2026-10-20)
+
+Replaced the unstyled table-wrap/plain table markup in Campaigns and execution monitoring with the existing Admin card, scroll-container, padded cells/headers, divider and light/dark table utilities. Added minimum table widths and confined horizontal scrolling; action groups have explicit spacing and desktop-only sticky positioning. No new visual system or backend changes. Added a ChromeHeadless layout regression measuring header text separation and table-contained overflow at 390px. Full browser suite: 160/160; Angular production build, scoped lint/format and diff whitespace checks pass. A separate browser preview launch was blocked by automatic tool policy, so layout verification used the existing browser harness.
+
+
+## Campaign modal UI (2026-10-20)
+
+Replaced the Campaigns listing table with responsive, aligned cards on both business/Admin routes. All normal operations remain on the listing: five-step modal builder, template preview/use, prefilled duplicate, details/analytics/history, lifecycle confirmation, global assignment and Admin execution monitoring. Reused semantic cards/fields/buttons/badges, existing theme tokens, Icon, DialogFocus, CampaignPicker, CampaignMonitoring and CampaignApi. Preserved every configuration field and existing backend/security contract; optional settings use disclosures. Added inline accessible validation, guarded unsaved close/navigation/unload/template replacement, single scrolling body, fixed builder header/footer, inert background and focus restoration.
+
+Verification: 170/170 ChromeHeadless tests (10 additional cases covering actual UI flows, five-step create/review, edit revision/preservation, duplicate delayed creation, templates, pause/resume/cancel, unsaved state, validation/errors, focus and responsive geometry); 254/254 API tests. ESLint, API and Angular app/spec typechecks, both production builds, scoped formatting and whitespace checks pass. Repository-wide formatting still reports the two previously unformatted untouched core/business service files. Existing non-fatal browser font/fixture and API listener warnings remain. Brain campaigns entry updated. No backend changes in this UI task; no real email, production migration, deploy, commit or push.
+
+## Shared dropdown modernization (2026-10-20)
+
+Audited all application screens. Migrated all 28 feature selects, both BusinessForm editable datalists and four existing action-menu implementations to one shared select/menu design. Added OnPush SelectControl (CVA), native AppSelect adapters, ActionMenu and shared top-layer DropdownPanel; styling uses existing tokens in dropdowns.css. Existing numeric/native values, validators, custom category/timezone text, filters/sorting, business switching, permission conditions, consent and sensitive-action confirmations remain authoritative. No dependencies or backend changes. Kept semantic choice cards, public answer controls, chart/config disclosures and authorized paginated CampaignPicker behavior.
+
+Full frontend suite: 187/187, including 17 new shared dropdown/browser cases (native/reactive CVAs, multi-select, search/reset, validation, async options, loading/disabled states, 2,000 options, clipped modal/Escape isolation, action callbacks, keyboard/focus and 390/768/1280px edge/long-label geometry). Existing Admin/Campaign flow tests use the visible shared triggers. Resolved an auth test's pre-existing storage-order assumption by checking login leaves existing preferences unchanged. ESLint, Angular app/spec typechecks and both API/Angular production builds pass. Changed-file formatting and whitespace checks pass; repository-wide formatting retains two existing warnings in untouched core/business/business.service.ts and business.service.spec.ts. Existing non-fatal font/fixture warnings remain.
+
+Architecture, API, examples, migration boundaries, browser fallback and bounded initial option rendering are in dropdowns.md; frontend-map, campaigns and change-impact updated. Native fallback remains for older browsers without Popover API. No real email, database migration, commit, push or deployment.

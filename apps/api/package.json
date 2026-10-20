@@ -11,7 +11,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "admin:grant": "tsx src/modules/admin/grant.ts"
+    "admin:grant": "tsx src/modules/admin/grant.ts",
+    "campaigns:indexes": "tsx scripts/campaign-indexes.ts"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

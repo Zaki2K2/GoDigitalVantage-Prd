@@ -153,6 +153,20 @@ import { requestId as newRequestId } from '../../shared/request-id';
               <button type="submit" class="btn block" [disabled]="busy()">
                 {{ busy() ? 'Redeeming…' : 'Redeem reward' }}
               </button>
+              @if (r.reward.campaignId) {
+                <div class="field">
+                  <label for="reward-order">Order reference (required)</label
+                  ><input
+                    id="reward-order"
+                    [value]="orderId()"
+                    (input)="orderId.set(val($event))"
+                    required
+                    maxlength="120"
+                  /><span class="hint"
+                    >One offer per order. Use the same reference as your till or invoice.</span
+                  >
+                </div>
+              }
             </form>
           }
         </section>
@@ -165,6 +179,7 @@ export class RewardsRedeemPage {
   private business: Business | null = null;
   protected readonly code = signal('');
   protected readonly total = signal('');
+  protected readonly orderId = signal('');
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly result = signal<VerifyResult | null>(null);
@@ -230,24 +245,38 @@ export class RewardsRedeemPage {
     }
     this.busy.set(true);
     this.error.set(null);
-    this.api.redeem(this.business.id, r.reward.code, this.requestId, orderTotal).subscribe({
-      next: (res) => {
-        this.done.set(res.reward);
-        this.wasDuplicate.set(res.duplicate);
-        this.busy.set(false);
-      },
-      error: (e: unknown) => {
-        const message = apiErrorMessage(e);
-        this.busy.set(false);
-        this.verify(true); // refresh the card (e.g. already redeemed), keeping the message
-        this.error.set(message);
-      },
-    });
+    if (r.reward.campaignId && !this.orderId().trim()) {
+      this.busy.set(false);
+      this.error.set('Enter the actual order reference.');
+      return;
+    }
+    this.api
+      .redeem(
+        this.business.id,
+        r.reward.code,
+        this.requestId,
+        orderTotal,
+        this.orderId().trim() || undefined,
+      )
+      .subscribe({
+        next: (res) => {
+          this.done.set(res.reward);
+          this.wasDuplicate.set(res.duplicate);
+          this.busy.set(false);
+        },
+        error: (e: unknown) => {
+          const message = apiErrorMessage(e);
+          this.busy.set(false);
+          this.verify(true); // refresh the card (e.g. already redeemed), keeping the message
+          this.error.set(message);
+        },
+      });
   }
 
   protected reset(): void {
     this.code.set('');
     this.total.set('');
+    this.orderId.set('');
     this.result.set(null);
     this.done.set(null);
     this.error.set(null);

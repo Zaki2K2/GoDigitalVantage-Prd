@@ -60,6 +60,7 @@ export const envSchema = z
     RESEND_API_KEY: optionalSecret(1),
     INSTANT_REWARDS_TOKEN_SECRET: optionalSecret(32),
     RESEND_WEBHOOK_SECRET: optionalSecret(16),
+    MARKETING_UNSUBSCRIBE_SECRET: optionalSecret(32),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().positive().default(3000),
     MONGODB_URI: z.string().min(1),

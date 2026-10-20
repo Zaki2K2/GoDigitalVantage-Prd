@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { ContactCampaignProfile } from '../campaigns/contact-campaign-profile';
 import { Component, DestroyRef, HostListener, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
@@ -16,7 +17,7 @@ import {
 /** Customers who chose to share an email or phone. Anonymous responses never appear here. */
 @Component({
   selector: 'app-contacts-page',
-  imports: [DatePipe, Icon, DialogFocus],
+  imports: [DatePipe, Icon, DialogFocus, ContactCampaignProfile],
   template: `
     <main class="page">
       <header class="page-header">
@@ -170,6 +171,13 @@ import {
                 : 'not granted'
             }}.
           </p>
+          @if (business?.role === 'owner') {
+            <app-contact-campaign-profile
+              [businessId]="business!.id"
+              [contact]="d.contact"
+              [marketingEmail]="d.marketingEmail ?? null"
+            />
+          }
           <h3>Consent history</h3>
           @if (d.consentEvents.length === 0) {
             <p class="muted">No permission recorded.</p>
@@ -199,7 +207,7 @@ export class ContactsPage {
   private readonly destroyRef = inject(DestroyRef);
   private listRequest?: Subscription;
   private detailRequest?: Subscription;
-  private business: Business | null = null;
+  protected business: Business | null = null;
   private page = 1;
 
   protected readonly search = signal('');

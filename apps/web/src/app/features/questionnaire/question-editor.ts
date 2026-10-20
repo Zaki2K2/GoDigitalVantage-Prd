@@ -1,3 +1,4 @@
+import { AppSelect } from '../../shared/app-select';
 import { Component, input, output } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import {
@@ -12,7 +13,7 @@ import { QuestionGroup, newChoiceGroup } from './question-form';
 /** Editor card for one question: text, type, required flag, choices, reorder and delete. */
 @Component({
   selector: 'app-question-editor',
-  imports: [ReactiveFormsModule, Icon],
+  imports: [AppSelect, ReactiveFormsModule, Icon],
   templateUrl: './question-editor.html',
 })
 export class QuestionEditor {

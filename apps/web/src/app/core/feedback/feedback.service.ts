@@ -91,6 +91,11 @@ export interface ResponseFilters {
 }
 
 export interface ContactItem extends ContactBrief {
+  birthday?: string | null;
+  anniversary?: string | null;
+  tags?: string[];
+  segment?: string | null;
+  loyaltyLevel?: string | null;
   responseCount: number;
   firstResponseAt: string;
   lastResponseAt: string;
@@ -98,6 +103,7 @@ export interface ContactItem extends ContactBrief {
 }
 
 export interface ContactDetail {
+  marketingEmail?: { state: 'granted' | 'revoked'; at: string } | null;
   contact: ContactItem;
   responses: {
     id: string;

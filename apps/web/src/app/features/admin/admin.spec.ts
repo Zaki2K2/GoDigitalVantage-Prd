@@ -78,7 +78,7 @@ describe('platform admin UI', () => {
     const f = TestBed.createComponent(AppShell);
     f.detectChanges();
     const menu = (f.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
-      '[data-user-menu] button',
+      'app-action-menu button[aria-label="Account"]',
     )!;
     menu.click();
     f.detectChanges();
@@ -152,6 +152,8 @@ describe('platform admin UI', () => {
       .expectOne(`/api/v1/admin/businesses/${B}`)
       .flush({ data: { _id: B, name: 'Alpha', adminState: 'active' } });
     f.detectChanges();
+    button(f, 'Actions').click();
+    f.detectChanges();
     button(f, 'Suspend').click();
     f.detectChanges();
     http.expectNone(`/api/v1/admin/businesses/${B}/state`);
@@ -170,6 +172,8 @@ describe('platform admin UI', () => {
     params.next(convertToParamMap({ section: 'businesses', id: B }));
     const f = create();
     http.expectOne(`/api/v1/admin/businesses/${B}`).flush({ data: { _id: B, name: 'Alpha' } });
+    f.detectChanges();
+    button(f, 'Actions').click();
     f.detectChanges();
     button(f, 'Suspend').click();
     f.detectChanges();
@@ -225,15 +229,22 @@ describe('platform admin UI', () => {
     const el = f.nativeElement as HTMLElement;
     const row = el.querySelector('tbody tr')!;
     const height = row.getBoundingClientRect().height;
-    const trigger = el.querySelector<HTMLButtonElement>('[data-admin-row-trigger]')!;
+    const trigger = el.querySelector<HTMLButtonElement>(
+      'app-action-menu button[aria-label^="Actions for"]',
+    )!;
+    trigger.scrollIntoView({ block: 'center' });
+    trigger.focus();
     trigger.click();
     f.detectChanges();
     tick();
     expect(el.querySelector('[role="menu"]')).not.toBeNull();
     expect(row.getBoundingClientRect().height).toBe(height);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    document.activeElement?.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
+    );
     f.detectChanges();
+    tick();
     expect(el.querySelector('[role="menu"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
   }));
@@ -243,7 +254,7 @@ describe('platform admin UI', () => {
     f.detectChanges();
     tick();
     (f.nativeElement as HTMLElement)
-      .querySelector<HTMLButtonElement>('[data-admin-row-trigger]')!
+      .querySelector<HTMLButtonElement>('app-action-menu button[aria-label^="Actions for"]')!
       .click();
     f.detectChanges();
     tick();

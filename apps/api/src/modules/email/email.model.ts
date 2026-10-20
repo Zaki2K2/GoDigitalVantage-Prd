@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import { applyMarketingReceipt } from '../campaigns/campaign.marketing';
 const schema = new Schema(
   {
     eventId: { type: String, required: true, unique: true },
@@ -35,4 +36,5 @@ export async function recordEmailReceipt(
   } catch (error) {
     if ((error as { code?: number }).code !== 11000) throw error;
   }
+  await applyMarketingReceipt(providerMessageId, type);
 }

@@ -28,6 +28,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('shared email provider', () => {
+  it('passes one-click unsubscribe headers in the actual provider payload', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(domain())
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'promotional-message' }), { status: 200 }),
+      );
+    vi.stubGlobal('fetch', fetcher);
+    await sendResendEmail({
+      ...message(),
+      unsubscribeUrl: 'https://example.com/api/v1/public/campaign-unsubscribe/signed',
+    });
+    const payload = JSON.parse(fetcher.mock.calls[1]![1].body as string);
+    expect(payload.headers).toEqual({
+      'List-Unsubscribe': '<https://example.com/api/v1/public/campaign-unsubscribe/signed>',
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    });
+  });
   it('defaults disabled, parses false strictly, allows blank secrets, rejects invalid sender/header injection', () => {
     const config = {
       MONGODB_URI: 'mongodb://localhost/gdv_test',

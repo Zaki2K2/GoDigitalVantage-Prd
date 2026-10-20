@@ -61,21 +61,14 @@
         <div class="card relative z-20 mb-4 flex flex-wrap items-center gap-3">
           <span class="badge brand">{{ record()!['adminState'] || 'active' }}</span>
           <button class="btn secondary sm" (click)="copy(id())">Copy business ID</button>
-          <details class="relative">
-            <summary class="btn secondary sm">Actions</summary>
-            <div
-              class="absolute left-0 z-20 mt-2 grid w-56 gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:bg-gray-900"
-            >
-              <button class="btn secondary sm" (click)="editing.set(true)">Edit business</button>
-              <button class="btn secondary sm" (click)="businessAction('suspended')">
-                Suspend
-              </button>
-              <button class="btn secondary sm" (click)="businessAction('active')">
-                Reactivate / restore
-              </button>
-              <button class="btn secondary sm" (click)="businessAction('archived')">Archive</button>
-            </div>
-          </details>
+          <app-action-menu
+            ><button class="btn secondary sm" (click)="editing.set(true)">Edit business</button>
+            <button class="btn secondary sm" (click)="businessAction('suspended')">Suspend</button>
+            <button class="btn secondary sm" (click)="businessAction('active')">
+              Reactivate / restore
+            </button>
+            <button class="btn secondary sm" (click)="businessAction('archived')">Archive</button>
+          </app-action-menu>
         </div>
         @if (editing()) {
           <div class="card mb-4">
@@ -102,7 +95,7 @@
             </button>
             <div class="field">
               <label for="platform-role">Platform role</label
-              ><select id="platform-role" [(ngModel)]="selectedPlatformRole">
+              ><select appSelect id="platform-role" [(ngModel)]="selectedPlatformRole">
                 <option value="USER">User</option>
                 <option value="SUPER_ADMIN">Super Admin</option>
               </select>
@@ -208,7 +201,13 @@
       @if (statuses().length) {
         <div class="field">
           <label for="admin-status">Status</label
-          ><select id="admin-status" name="status" [(ngModel)]="status" (change)="apply()">
+          ><select
+            appSelect
+            id="admin-status"
+            name="status"
+            [(ngModel)]="status"
+            (change)="apply()"
+          >
             <option value="">All statuses</option>
             @for (item of statuses(); track item) {
               <option [value]="item">{{ label(item) }}</option>
@@ -219,7 +218,7 @@
       @if (section() === 'users' && !id()) {
         <div class="field">
           <label for="admin-role">Role</label
-          ><select id="admin-role" name="role" [(ngModel)]="role" (change)="apply()">
+          ><select appSelect id="admin-role" name="role" [(ngModel)]="role" (change)="apply()">
             <option value="">All roles</option>
             <option>SUPER_ADMIN</option>
             <option>USER</option>
@@ -231,7 +230,13 @@
       @if (activeResource() === 'responses') {
         <div class="field">
           <label for="admin-rating">Rating</label
-          ><select id="admin-rating" name="rating" [(ngModel)]="rating" (change)="apply()">
+          ><select
+            appSelect
+            id="admin-rating"
+            name="rating"
+            [(ngModel)]="rating"
+            (change)="apply()"
+          >
             <option value="">All ratings</option>
             @for (item of [1, 2, 3, 4, 5]; track item) {
               <option [value]="item">{{ item }}</option>
@@ -269,6 +274,7 @@
         <div class="field">
           <label for="admin-onboarding">Onboarding</label
           ><select
+            appSelect
             id="admin-onboarding"
             name="onboarding"
             [(ngModel)]="onboarding"
@@ -302,7 +308,13 @@
         </div>
         <div class="field">
           <label for="admin-entity">Entity</label
-          ><select id="admin-entity" name="entity" [(ngModel)]="entity" (change)="apply()">
+          ><select
+            appSelect
+            id="admin-entity"
+            name="entity"
+            [(ngModel)]="entity"
+            (change)="apply()"
+          >
             <option value="">All</option>
             @for (
               item of ['businesses', 'users', 'forms', 'promotions', 'memberships'];
@@ -324,7 +336,7 @@
         </div>
         <div class="field">
           <label for="admin-sort">Sort by</label
-          ><select id="admin-sort" name="sort" [(ngModel)]="sort" (change)="apply()">
+          ><select appSelect id="admin-sort" name="sort" [(ngModel)]="sort" (change)="apply()">
             <option value="createdAt">Date</option>
             @if (activeResource() === 'businesses') {
               <option value="name">Name</option>
@@ -336,7 +348,13 @@
         </div>
         <div class="field">
           <label for="admin-direction">Order</label
-          ><select id="admin-direction" name="direction" [(ngModel)]="direction" (change)="apply()">
+          ><select
+            appSelect
+            id="admin-direction"
+            name="direction"
+            [(ngModel)]="direction"
+            (change)="apply()"
+          >
             <option value="desc">Newest first</option>
             <option value="asc">Oldest first</option>
           </select>
@@ -458,27 +476,54 @@
                           View
                         </button>
                         @if (activeResource() === 'businesses' && !id()) {
-                          <button
-                            type="button"
-                            class="icon-btn !size-8 !border-transparent !bg-transparent"
-                            data-admin-row-trigger
-                            aria-haspopup="menu"
-                            [attr.aria-expanded]="rowMenu()?.row?._id === row._id"
-                            [attr.aria-label]="'Actions for ' + row['name']"
-                            (click)="toggleRowMenu(row, $event)"
+                          <app-action-menu
+                            label="Actions"
+                            [ariaLabel]="'Actions for ' + row['name']"
+                            [iconOnly]="true"
+                            triggerClass="icon-btn"
                           >
-                            <svg
-                              width="18"
-                              height="18"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                              aria-hidden="true"
+                            <a
+                              role="menuitem"
+                              class="menu-item menu-item-inactive !py-2"
+                              [routerLink]="['/admin/businesses', row._id]"
+                              [queryParams]="{ tab: 'members' }"
+                              (click)="closeRowMenu()"
+                              ><app-icon name="user" [size]="16" /> Members</a
                             >
-                              <circle cx="5" cy="12" r="1.8" />
-                              <circle cx="12" cy="12" r="1.8" />
-                              <circle cx="19" cy="12" r="1.8" />
-                            </svg>
-                          </button>
+                            <a
+                              role="menuitem"
+                              class="menu-item menu-item-inactive !py-2"
+                              [routerLink]="['/admin/businesses', row._id]"
+                              [queryParams]="{ tab: 'activity' }"
+                              (click)="closeRowMenu()"
+                              ><app-icon name="calendar" [size]="16" /> Audit history</a
+                            >
+                            <button
+                              role="menuitem"
+                              class="menu-item menu-item-inactive !py-2"
+                              (click)="copy(row._id)"
+                            >
+                              <app-icon name="copy" [size]="16" /> Copy business ID
+                            </button>
+                            <div class="my-1 border-t border-gray-100 dark:border-gray-800"></div>
+                            @if (['suspended', 'archived'].includes('' + row['adminState'])) {
+                              <button
+                                role="menuitem"
+                                class="menu-item menu-item-inactive !py-2"
+                                (click)="businessAction('active', row._id)"
+                              >
+                                <app-icon name="refresh" [size]="16" /> Restore business
+                              </button>
+                            } @else {
+                              <button
+                                role="menuitem"
+                                class="menu-item menu-item-inactive !py-2 !text-error-600"
+                                (click)="businessAction('suspended', row._id)"
+                              >
+                                <app-icon name="shield" [size]="16" /> Suspend business
+                              </button>
+                            }
+                          </app-action-menu>
                         }
                         @if (['members', 'memberships'].includes(tab())) {
                           <button
@@ -496,6 +541,7 @@
                             Remove Business Access
                           </button>
                           <select
+                            appSelect
                             class="form-select form-select-sm"
                             [attr.aria-label]="'Business role for membership ' + row._id"
                             [ngModel]="membershipRoles.get(row._id) || row['role']"
@@ -561,60 +607,6 @@
         </nav>
       }
     }
-  }
-  @if (rowMenu(); as menu) {
-    <div
-      tabindex="-1"
-      data-admin-row-menu
-      role="menu"
-      aria-label="Business actions"
-      class="fixed z-[100] w-52 rounded-xl border border-gray-200 bg-white p-1.5 shadow-theme-lg dark:border-gray-800 dark:bg-gray-900"
-      [style.top.px]="menu.top"
-      [style.left.px]="menu.left"
-      (keydown)="menuKey($event)"
-    >
-      <a
-        role="menuitem"
-        class="menu-item menu-item-inactive !py-2"
-        [routerLink]="['/admin/businesses', menu.row._id]"
-        [queryParams]="{ tab: 'members' }"
-        (click)="closeRowMenu()"
-        ><app-icon name="user" [size]="16" /> Members</a
-      >
-      <a
-        role="menuitem"
-        class="menu-item menu-item-inactive !py-2"
-        [routerLink]="['/admin/businesses', menu.row._id]"
-        [queryParams]="{ tab: 'activity' }"
-        (click)="closeRowMenu()"
-        ><app-icon name="calendar" [size]="16" /> Audit history</a
-      >
-      <button
-        role="menuitem"
-        class="menu-item menu-item-inactive !py-2"
-        (click)="copy(menu.row._id)"
-      >
-        <app-icon name="copy" [size]="16" /> Copy business ID
-      </button>
-      <div class="my-1 border-t border-gray-100 dark:border-gray-800"></div>
-      @if (['suspended', 'archived'].includes('' + menu.row['adminState'])) {
-        <button
-          role="menuitem"
-          class="menu-item menu-item-inactive !py-2"
-          (click)="businessAction('active', menu.row._id)"
-        >
-          <app-icon name="refresh" [size]="16" /> Restore business
-        </button>
-      } @else {
-        <button
-          role="menuitem"
-          class="menu-item menu-item-inactive !py-2 !text-error-600"
-          (click)="businessAction('suspended', menu.row._id)"
-        >
-          <app-icon name="shield" [size]="16" /> Suspend business
-        </button>
-      }
-    </div>
   }
   @if (pending(); as action) {
     <div class="fixed inset-0 z-[1000] flex items-center justify-center bg-gray-950/60 p-4">

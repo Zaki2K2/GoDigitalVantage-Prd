@@ -1,3 +1,4 @@
+import { AppSelect } from '../../shared/app-select';
 import { DatePipe } from '@angular/common';
 import { Component, DestroyRef, HostListener, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -19,7 +20,7 @@ const EMPTY: ResponseFilters = { page: 1, search: '', rating: '', contact: '', f
 /** Read-only list of customer feedback. Responses are immutable snapshots. */
 @Component({
   selector: 'app-responses-page',
-  imports: [DatePipe, Icon, DialogFocus],
+  imports: [AppSelect, DatePipe, Icon, DialogFocus],
   template: `
     <main class="page">
       <header class="page-header">
@@ -63,7 +64,12 @@ const EMPTY: ResponseFilters = { page: 1, search: '', rating: '', contact: '', f
         </div>
         <div class="field">
           <label for="f-rating">Rating</label>
-          <select id="f-rating" [value]="draft().rating" (change)="set('rating', val($event))">
+          <select
+            appSelect
+            id="f-rating"
+            [value]="draft().rating"
+            (change)="set('rating', val($event))"
+          >
             <option value="">Any</option>
             @for (r of [5, 4, 3, 2, 1]; track r) {
               <option [value]="r">{{ r }}</option>
@@ -72,7 +78,12 @@ const EMPTY: ResponseFilters = { page: 1, search: '', rating: '', contact: '', f
         </div>
         <div class="field">
           <label for="f-contact">Customer</label>
-          <select id="f-contact" [value]="draft().contact" (change)="set('contact', val($event))">
+          <select
+            appSelect
+            id="f-contact"
+            [value]="draft().contact"
+            (change)="set('contact', val($event))"
+          >
             <option value="">All</option>
             <option value="identified">With contact details</option>
             <option value="anonymous">Anonymous</option>

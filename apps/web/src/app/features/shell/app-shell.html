@@ -117,6 +117,7 @@
         <div class="min-w-0">
           @if (businessList().length > 1) {
             <select
+              appSelect
               class="form-select form-select-sm"
               aria-label="Select business"
               [value]="b.id"
@@ -151,14 +152,12 @@
         <app-icon [name]="theme.theme() === 'dark' ? 'sun' : 'moon'" />
       </button>
 
-      <div class="relative" data-user-menu>
-        <button
-          type="button"
-          class="flex items-center gap-2 rounded-lg p-1 pr-2 transition hover:bg-gray-100 dark:hover:bg-white/5"
-          aria-haspopup="menu"
-          [attr.aria-expanded]="menu()"
-          (click)="menu.set(!menu())"
-        >
+      <app-action-menu
+        label="Account"
+        [customTrigger]="true"
+        triggerClass="flex items-center gap-2 rounded-lg p-1 pr-2 transition hover:bg-gray-100 dark:hover:bg-white/5"
+      >
+        <span menuTrigger class="flex items-center gap-2">
           <span
             class="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-blue-light-500 text-theme-sm font-semibold text-white"
             aria-hidden="true"
@@ -171,48 +170,41 @@
             {{ user()?.fullName }}
           </span>
           <app-icon name="chevron-down" [size]="16" />
-        </button>
-        @if (menu()) {
-          <div
-            role="menu"
-            class="absolute right-0 mt-2 w-64 animate-pop rounded-2xl border border-gray-200 bg-white p-2 shadow-theme-lg dark:border-gray-800 dark:bg-gray-900"
+        </span>
+        <div class="border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+          <p class="m-0 truncate text-theme-sm font-semibold text-gray-900 dark:text-white/90">
+            {{ user()?.fullName }}
+          </p>
+          <p class="m-0 truncate text-theme-xs text-gray-500 dark:text-gray-400">
+            {{ user()?.email }}
+          </p>
+        </div>
+        @if (user()?.platformRole === 'SUPER_ADMIN') {
+          <a routerLink="/admin" role="menuitem" class="menu-item menu-item-inactive"
+            ><app-icon name="shield" /> Platform admin</a
           >
-            <div class="border-b border-gray-100 px-3 py-2 dark:border-gray-800">
-              <p class="m-0 truncate text-theme-sm font-semibold text-gray-900 dark:text-white/90">
-                {{ user()?.fullName }}
-              </p>
-              <p class="m-0 truncate text-theme-xs text-gray-500 dark:text-gray-400">
-                {{ user()?.email }}
-              </p>
-            </div>
-            @if (user()?.platformRole === 'SUPER_ADMIN') {
-              <a routerLink="/admin" role="menuitem" class="menu-item menu-item-inactive"
-                ><app-icon name="shield" /> Platform admin</a
-              >
-            }
-            @if (!adminMode) {
-              <a routerLink="/" role="menuitem" class="menu-item menu-item-inactive"
-                ><app-icon name="dashboard" /> Business dashboard</a
-              >
-              <a routerLink="/business" role="menuitem" class="menu-item menu-item-inactive mt-1">
-                <app-icon name="business" /> Business profile
-              </a>
-              <a routerLink="/settings" role="menuitem" class="menu-item menu-item-inactive"
-                ><app-icon name="settings" /> Settings</a
-              >
-            }
-            <button
-              type="button"
-              role="menuitem"
-              class="menu-item menu-item-inactive"
-              (click)="signOut()"
-              [disabled]="signingOut()"
-            >
-              <app-icon name="logout" /> {{ signingOut() ? 'Signing out…' : 'Sign out' }}
-            </button>
-          </div>
         }
-      </div>
+        @if (!adminMode) {
+          <a routerLink="/" role="menuitem" class="menu-item menu-item-inactive"
+            ><app-icon name="dashboard" /> Business dashboard</a
+          >
+          <a routerLink="/business" role="menuitem" class="menu-item menu-item-inactive mt-1">
+            <app-icon name="business" /> Business profile
+          </a>
+          <a routerLink="/settings" role="menuitem" class="menu-item menu-item-inactive"
+            ><app-icon name="settings" /> Settings</a
+          >
+        }
+        <button
+          type="button"
+          role="menuitem"
+          class="menu-item menu-item-inactive"
+          (click)="signOut()"
+          [disabled]="signingOut()"
+        >
+          <app-icon name="logout" /> {{ signingOut() ? 'Signing out…' : 'Sign out' }}
+        </button>
+      </app-action-menu>
     </div>
   </header>
 

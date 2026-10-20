@@ -1,4 +1,6 @@
-import { Component, HostListener, computed, inject, signal } from '@angular/core';
+import { ActionMenu } from '../../shared/action-menu';
+import { AppSelect } from '../../shared/app-select';
+import { Component, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import {
   ActivatedRoute,
   NavigationEnd,
@@ -33,6 +35,7 @@ const GROUPS: NavGroup[] = [
       { path: '/responses', label: 'Responses', icon: 'responses' },
       { path: '/contacts', label: 'Contacts', icon: 'contacts' },
       { path: '/rewards', label: 'Rewards', icon: 'gift' },
+      { path: '/campaigns', label: 'Campaigns', icon: 'calendar' },
     ],
   },
   {
@@ -49,7 +52,7 @@ const GROUPS: NavGroup[] = [
 /** App shell (TailAdmin layout): collapsible sidebar, mobile drawer, sticky header. */
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, BrandLogo],
+  imports: [ActionMenu, AppSelect, RouterOutlet, RouterLink, RouterLinkActive, Icon, BrandLogo],
   templateUrl: './app-shell.html',
 })
 export class AppShell {
@@ -99,6 +102,7 @@ export class AppShell {
               { path: '/admin/responses', label: 'Responses', icon: 'responses' },
               { path: '/admin/contacts', label: 'Contacts', icon: 'contacts' },
               { path: '/admin/promotions', label: 'Promotions', icon: 'gift' },
+              { path: '/admin/campaigns', label: 'Campaigns', icon: 'calendar' },
               { path: '/admin/instant-rewards', label: 'Instant Rewards', icon: 'gift' },
               { path: '/my-rewards', label: 'My Rewards', icon: 'gift' },
               { path: '/admin/activity', label: 'Activity', icon: 'calendar' },
@@ -130,7 +134,7 @@ export class AppShell {
   protected readonly expanded = signal(true);
   /** Mobile: drawer open. */
   protected readonly drawer = signal(false);
-  protected readonly menu = signal(false);
+  private readonly accountMenu = viewChild(ActionMenu);
   protected readonly signingOut = signal(false);
   protected readonly signOutError = signal('');
 
@@ -154,7 +158,7 @@ export class AppShell {
     // Close transient UI after every navigation.
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => {
       this.drawer.set(false);
-      this.menu.set(false);
+      this.accountMenu()?.close(false);
       document.getElementById('content')?.focus({ preventScroll: true });
     });
   }
@@ -172,12 +176,7 @@ export class AppShell {
   @HostListener('document:keydown.escape')
   protected closeOverlays(): void {
     this.drawer.set(false);
-    this.menu.set(false);
-  }
-
-  @HostListener('document:click', ['$event'])
-  protected outside(e: MouseEvent): void {
-    if (this.menu() && !(e.target as HTMLElement).closest('[data-user-menu]')) this.menu.set(false);
+    this.accountMenu()?.close(false);
   }
 
   protected signOut(): void {

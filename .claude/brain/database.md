@@ -40,3 +40,7 @@ users adds platformRole (USER/SUPER_ADMIN) and sessionsRevokedAt; businesses add
 ## Shared email provider (2026-10-19)
 
 email_delivery_events: unique eventId, indexed providerMessageId, type (delivered/failed/bounced/complained/suppressed), occurredAt, receivedAt. No bodies, tokens or OTPs. Additive indexes; no TTL or migration of existing reward documents.
+
+## Campaign Management Engine
+
+M-CAMP adds campaigns, campaign_executions, campaign_recipients, campaign_locks, campaign_templates; extends contact campaign profiles and reward source references. Required partial reward response index migration: [campaigns](campaigns.md).

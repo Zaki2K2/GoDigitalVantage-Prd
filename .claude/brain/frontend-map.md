@@ -43,3 +43,12 @@ Styling: design tokens (`--c-*`, `--radius`, `--shadow-*`) + shared classes (`.b
 ## Instant Rewards
 
 `features/instant-rewards`: shared typed API, reward details/timeline, admin list/filter/summary/create/edit/confirm/audit screens; My Rewards; scrubbed-token landing with inline existing LoginPage. Routes: `/admin/instant-rewards`, delegated `/rewards-admin`, personal `/my-rewards`, public landing `/instant-reward`. Personal routes skip business onboarding/data queries. Existing AppShell, CSS controls/cards/tables, Icon and DialogFocus reused. Backend allowedActions drives controls. Super Admin user details can toggle the permission with existing confirmation flow.
+
+## Campaign Management Engine
+
+M-CAMP: `/campaigns` and `/admin/campaigns` share CampaignsPage, CampaignApi and the five-step modal builder using existing shell/styles. ContactCampaignProfile is embedded in the existing Contacts drawer. See [campaigns](campaigns.md).
+
+
+## Shared dropdown system (2026-10-20)
+
+All 28 feature selects and BusinessForm's two editable datalists use AppSelect (`shared/app-select.ts`) and one OnPush SelectControl renderer/CVA. Native form accessors, values, validation and original events are preserved. Admin/Campaign/account action menus use shared ActionMenu; DropdownPanel uses the native top layer with viewport clamping, upward placement and logical modal ancestry. Appearance lives in `src/dropdowns.css` using existing tokens. Public answer choices, Settings cards, chart/config disclosures and authorized paginated CampaignPicker are intentionally retained. Architecture, API, examples, audit and testing: [dropdowns](dropdowns.md).

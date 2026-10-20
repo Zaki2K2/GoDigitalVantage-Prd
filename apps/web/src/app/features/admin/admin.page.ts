@@ -1,7 +1,17 @@
+import { ActionMenu } from '../../shared/action-menu';
+import { AppSelect } from '../../shared/app-select';
 import { QuestionnaireFormView } from '../questionnaire/questionnaire-form-view';
 import { QuestionnaireContent } from '../../core/questionnaire/questionnaire.service';
 import { DatePipe, Location } from '@angular/common';
-import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  HostListener,
+  computed,
+  inject,
+  signal,
+  viewChildren,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -49,6 +59,8 @@ interface PendingAction {
 @Component({
   selector: 'app-admin-page',
   imports: [
+    ActionMenu,
+    AppSelect,
     AdminDashboard,
     DatePipe,
     RouterLink,
@@ -79,8 +91,7 @@ export class AdminPage {
   protected readonly id = signal('');
   protected readonly tab = signal('overview');
   protected readonly record = signal<AdminRecord | null>(null);
-  protected readonly rowMenu = signal<{ row: AdminRecord; top: number; left: number } | null>(null);
-  private menuOpener: HTMLElement | null = null;
+  private readonly actionMenus = viewChildren(ActionMenu);
   protected readonly rows = signal<AdminRecord[]>([]);
   protected readonly inspected = signal<AdminRecord | null>(null);
   protected readonly metrics = signal<{ label: string; value: number }[]>([]);
@@ -259,57 +270,8 @@ export class AdminPage {
     if (['onboarding', 'pending', 'pending_approval'].includes(status)) return 'warn';
     return 'neutral';
   }
-  protected toggleRowMenu(row: AdminRecord, event: MouseEvent): void {
-    if (this.rowMenu()?.row._id === row._id) {
-      this.closeRowMenu(true);
-      return;
-    }
-    this.menuOpener = event.currentTarget as HTMLElement;
-    const rect = this.menuOpener.getBoundingClientRect();
-    this.rowMenu.set({
-      row,
-      top: Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 244)),
-      left: Math.max(8, Math.min(rect.right - 208, window.innerWidth - 216)),
-    });
-    setTimeout(() =>
-      document.querySelector<HTMLElement>('[data-admin-row-menu] [role="menuitem"]')?.focus(),
-    );
-  }
   protected closeRowMenu(restoreFocus = false): void {
-    this.rowMenu.set(null);
-    if (restoreFocus) this.menuOpener?.focus();
-  }
-  protected menuKey(event: KeyboardEvent): void {
-    if (event.key === 'Tab') {
-      this.closeRowMenu(true);
-      return;
-    }
-    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-    event.preventDefault();
-    const items = Array.from(
-      (event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]'),
-    );
-    const index = items.indexOf(document.activeElement as HTMLElement);
-    const next =
-      event.key === 'Home'
-        ? 0
-        : event.key === 'End'
-          ? items.length - 1
-          : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-    items[next]?.focus();
-  }
-  @HostListener('document:click', ['$event'])
-  protected outsideRowMenu(event: MouseEvent): void {
-    if (!(event.target as HTMLElement).closest('[data-admin-row-menu], [data-admin-row-trigger]'))
-      this.closeRowMenu();
-  }
-  @HostListener('window:scroll')
-  protected closeMenuOnScroll(): void {
-    this.closeRowMenu();
-  }
-  @HostListener('window:resize')
-  protected closeMenuOnResize(): void {
-    this.closeRowMenu();
+    for (const menu of this.actionMenus()) menu.close(restoreFocus);
   }
   protected label(value: string): string {
     return value

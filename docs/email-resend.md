@@ -4,7 +4,7 @@ Spec: [email-provider.md](specs/email-provider.md). Sending stays disabled until
 
 ## API Vercel settings
 
-API project: Root Directory `apps/api`, Framework `Other`, Node.js `22.x`, Install Command `npm ci`, Build Command `npm run build`, Output Directory `public`. Existing `apps/api/vercel.json` retains `/api/index` rewrites, `dist/**` inclusion and 15-second function maximum. Resend domain lookup plus submission shares one eight-second abort budget. All delivery work is awaited; no process-local queue or post-response work is assumed.
+API project: Root Directory `apps/api`, Framework `Other`, Node.js `22.x`, Install Command `npm ci`, Build Command `npm run build`, Output Directory `public`. Existing `apps/api/vercel.json` retains `/api/index` rewrites, `dist/**` inclusion and 60-second function maximum. Resend domain lookup plus submission shares one eight-second abort budget. All delivery work is awaited; no process-local queue or post-response work is assumed.
 
 Set these variables in the **API** project's Production environment (Preview only when deliberately enabled). In Vercel enter values without shell quotes:
 

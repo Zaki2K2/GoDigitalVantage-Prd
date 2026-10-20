@@ -10,6 +10,11 @@ import { onboardedGuard } from './core/business/onboarded.guard';
 
 export const routes: Routes = [
   {
+    path: 'email-preferences',
+    loadComponent: () =>
+      import('./features/campaigns/email-preferences.page').then((m) => m.EmailPreferencesPage),
+  },
+  {
     path: 'login',
     canActivate: [guestGuard],
     loadComponent: () => import('./features/auth/login.page').then((m) => m.LoginPage),
@@ -83,6 +88,15 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       {
+        path: 'campaigns',
+        canDeactivate: [
+          (component: { canLeave: () => boolean | Promise<boolean> }) => component.canLeave(),
+        ],
+        data: { campaignAdmin: true },
+        loadComponent: () =>
+          import('./features/campaigns/campaigns.page').then((m) => m.CampaignsPage),
+      },
+      {
         path: 'instant-rewards',
         loadComponent: () =>
           import('./features/instant-rewards/instant-rewards-admin.page').then(
@@ -105,6 +119,14 @@ export const routes: Routes = [
     canActivate: [authGuard, onboardedGuard],
     loadComponent: () => import('./features/shell/app-shell').then((m) => m.AppShell),
     children: [
+      {
+        path: 'campaigns',
+        canDeactivate: [
+          (component: { canLeave: () => boolean | Promise<boolean> }) => component.canLeave(),
+        ],
+        loadComponent: () =>
+          import('./features/campaigns/campaigns.page').then((m) => m.CampaignsPage),
+      },
       {
         path: 'settings',
         loadComponent: () =>

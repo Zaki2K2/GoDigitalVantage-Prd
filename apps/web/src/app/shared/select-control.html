@@ -1,0 +1,167 @@
+<div
+  [class.gdv-select-has-clear]="clearable && hasValue && !disabled"
+  class="gdv-select-control"
+  [class.gdv-select-invalid]="isInvalid"
+>
+  @if (allowCustom) {
+    <input
+      #trigger
+      class="gdv-select-trigger"
+      type="text"
+      role="combobox"
+      autocomplete="off"
+      [attr.aria-label]="labelledBy ? null : label"
+      [attr.aria-labelledby]="labelledBy"
+      [attr.aria-describedby]="error ? (describedBy || '') + ' ' + uid + '-error' : describedBy"
+      [attr.aria-required]="isRequired"
+      [attr.aria-invalid]="isInvalid"
+      [attr.aria-expanded]="opened()"
+      [attr.aria-controls]="opened() ? uid : null"
+      [attr.aria-activedescendant]="opened() && active() >= 0 ? uid + '-' + active() : null"
+      aria-autocomplete="list"
+      [value]="value ?? ''"
+      [placeholder]="placeholder"
+      [disabled]="disabled"
+      [maxLength]="maxLength"
+      (input)="customInput($event)"
+      (click)="open()"
+    />
+    <app-icon class="gdv-select-custom-arrow" name="chevron-down" [size]="16" />
+  } @else {
+    <button
+      #trigger
+      type="button"
+      class="gdv-select-trigger"
+      role="combobox"
+      aria-haspopup="listbox"
+      [attr.aria-expanded]="opened()"
+      [attr.aria-controls]="opened() ? uid : null"
+      [attr.aria-activedescendant]="opened() && active() >= 0 ? uid + '-' + active() : null"
+      [attr.aria-label]="labelledBy ? null : label"
+      [attr.aria-labelledby]="labelledBy"
+      [attr.aria-describedby]="error ? (describedBy || '') + ' ' + uid + '-error' : describedBy"
+      [attr.aria-required]="isRequired"
+      [attr.aria-invalid]="isInvalid"
+      [disabled]="disabled"
+      (click)="toggle()"
+    >
+      <span class="gdv-select-value" [title]="display">
+        @if (multiple && selected.length) {
+          <span class="gdv-select-chips">
+            @for (o of selected.slice(0, 2); track o.value) {
+              <span class="gdv-select-chip">{{ o.label }}</span>
+            }
+            @if (selected.length > 2) {
+              <span class="gdv-select-chip">+{{ selected.length - 2 }}</span>
+            }
+          </span>
+        } @else {
+          {{ display }}
+        }
+      </span>
+      <app-icon name="chevron-down" [size]="16" />
+    </button>
+  }
+  @if (clearable && hasValue && !disabled) {
+    <button
+      type="button"
+      class="gdv-select-clear"
+      [attr.aria-label]="'Clear ' + label"
+      (click)="clear()"
+    >
+      <app-icon name="close" [size]="14" />
+    </button>
+  }
+</div>
+@if (error) {
+  <span [id]="uid + '-error'" class="gdv-select-error" role="alert">{{ error }}</span>
+}
+@if (opened()) {
+  <div
+    appDropdownPanel
+    [dropdownAnchor]="triggerElement"
+    (dropdownDismiss)="close(false)"
+    (dropdownReady)="panelReady()"
+    class="gdv-select-panel"
+  >
+    @if (searchable && !allowCustom) {
+      <div class="gdv-select-search">
+        <app-icon name="search" [size]="16" /><input
+          #search
+          type="search"
+          role="combobox"
+          [attr.aria-label]="'Search ' + label"
+          [attr.aria-controls]="uid"
+          aria-expanded="true"
+          aria-autocomplete="list"
+          [attr.aria-activedescendant]="active() >= 0 ? uid + '-' + active() : null"
+          placeholder="Search..."
+          [value]="query()"
+          (input)="filter($event)"
+        />
+      </div>
+    }
+    <div
+      [id]="uid"
+      role="listbox"
+      [attr.aria-label]="label"
+      [attr.aria-multiselectable]="multiple ? true : null"
+      [attr.aria-busy]="loading"
+      class="gdv-select-options"
+    >
+      @if (loading) {
+        <p role="status" class="gdv-dropdown-state">Loading options...</p>
+      } @else {
+        @for (o of filtered.slice(0, limit()); track o.value; let i = $index) {
+          @if (o.group && (i === 0 || filtered[i - 1]?.group !== o.group)) {
+            <div class="gdv-select-group" role="presentation">{{ o.group }}</div>
+          }
+          <div
+            role="option"
+            [id]="uid + '-' + i"
+            [attr.data-option-index]="i"
+            [attr.aria-label]="(o.group ? o.group + ': ' : '') + o.label"
+            [attr.aria-selected]="isSelected(o)"
+            [attr.aria-disabled]="!!o.disabled"
+            [attr.aria-describedby]="o.description ? uid + '-' + i + '-description' : null"
+            [class.gdv-option-active]="active() === i"
+            class="gdv-select-option"
+            tabindex="-1"
+            (keydown)="key($event); $event.stopPropagation()"
+            (click)="choose(o)"
+            (pointerenter)="active.set(i)"
+          >
+            @if (multiple) {
+              <span class="gdv-option-checkbox" [class.checked]="isSelected(o)" aria-hidden="true">
+                @if (isSelected(o)) {
+                  <app-icon name="check" [size]="14" />
+                }
+              </span>
+            }
+            @if (o.icon) {
+              <app-icon [name]="o.icon" [size]="18" />
+            }
+            <span class="gdv-option-copy"
+              ><span class="gdv-option-label" [title]="o.label">{{ o.label }}</span>
+              @if (o.description) {
+                <span [id]="uid + '-' + i + '-description'" class="gdv-option-description">{{
+                  o.description
+                }}</span>
+              }
+            </span>
+            @if (!multiple && isSelected(o)) {
+              <app-icon name="check" [size]="16" />
+            }
+          </div>
+        } @empty {
+          <p class="gdv-dropdown-state" role="status">No options found.</p>
+        }
+        @if (filtered.length > limit()) {
+          <button type="button" class="gdv-dropdown-more" (click)="limit.set(limit() + 80)">
+            Show more ({{ filtered.length - limit() }} remaining)
+          </button>
+        }
+      }
+    </div>
+  </div>
+}

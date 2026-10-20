@@ -67,6 +67,7 @@
     <div class="field !mb-0 min-w-48 flex-1">
       <label [for]="'type-' + index()">Answer type</label>
       <select
+        appSelect
         [id]="'type-' + index()"
         [value]="group().controls.type.value"
         [disabled]="disabled()"

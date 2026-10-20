@@ -70,3 +70,7 @@ Management permission: active SUPER_ADMIN or explicit `instant_rewards:manage`. 
 ## Shared email provider (2026-10-19)
 
 POST /api/v1/webhooks/resend is the shared raw signed webhook. /api/v1/webhooks/instant-rewards/email remains an alias. No public arbitrary-send, reset or OTP endpoint was added.
+
+## Campaign Management Engine
+
+M-CAMP: business `/businesses/:businessId/campaigns`, platform `/admin/campaigns`, contact campaign-profile update, bearer scheduler `/internal/campaigns/run`. Full payload/permission map: [campaigns](campaigns.md).

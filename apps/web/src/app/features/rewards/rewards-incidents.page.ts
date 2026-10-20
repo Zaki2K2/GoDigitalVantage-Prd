@@ -1,3 +1,4 @@
+import { AppSelect } from '../../shared/app-select';
 import { DatePipe } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -38,7 +39,7 @@ const REASON: Record<string, string> = {
 /** Complaint log: every low rating that matched a rule, with its outcome. */
 @Component({
   selector: 'app-rewards-incidents-page',
-  imports: [DatePipe, RouterLink, Icon],
+  imports: [AppSelect, DatePipe, RouterLink, Icon],
   template: `
     <div class="segmented mb-4 flex-wrap" role="tablist" aria-label="Complaint status">
       @for (f of filters; track f.value) {
@@ -119,6 +120,7 @@ const REASON: Record<string, string> = {
                 <div class="field !mb-0 min-w-56 flex-1">
                   <label [for]="'rule-' + i.id">Reward rule</label>
                   <select
+                    appSelect
                     [id]="'rule-' + i.id"
                     [value]="ruleId()"
                     (change)="ruleId.set(val($event))"

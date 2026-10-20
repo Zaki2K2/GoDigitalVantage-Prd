@@ -1,3 +1,4 @@
+import { AppSelect } from '../../shared/app-select';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { apiErrorMessage } from '../../core/auth/auth.service';
@@ -19,7 +20,7 @@ const opt = (v: string | number | null): number | null => {
 /** Reward rules: create from a template or from scratch, edit, enable/disable. Owners only. */
 @Component({
   selector: 'app-rewards-rules-page',
-  imports: [ReactiveFormsModule, Icon],
+  imports: [AppSelect, ReactiveFormsModule, Icon],
   template: `
     @if (error(); as m) {
       <div class="alert" role="alert">
@@ -68,7 +69,7 @@ const opt = (v: string | number | null): number | null => {
             </div>
             <div class="field">
               <label for="r-rating">Trigger: rating at or below</label>
-              <select id="r-rating" formControlName="maxRating">
+              <select appSelect id="r-rating" formControlName="maxRating">
                 @for (n of [1, 2, 3, 4, 5]; track n) {
                   <option [ngValue]="n">{{ n }} / 5</option>
                 }
@@ -76,14 +77,14 @@ const opt = (v: string | number | null): number | null => {
             </div>
             <div class="field">
               <label for="r-mode">Issuing</label>
-              <select id="r-mode" formControlName="mode">
+              <select appSelect id="r-mode" formControlName="mode">
                 <option value="approval">I approve each reward</option>
                 <option value="auto">Issue automatically</option>
               </select>
             </div>
             <div class="field">
               <label for="r-type">Discount type</label>
-              <select id="r-type" formControlName="discountType">
+              <select appSelect id="r-type" formControlName="discountType">
                 <option value="percent">Percentage</option>
                 <option value="fixed">Fixed amount</option>
               </select>

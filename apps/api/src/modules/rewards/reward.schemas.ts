@@ -93,6 +93,7 @@ export const redeemSchema = z
       .max(64)
       .regex(/^[A-Za-z0-9_-]+$/),
     orderTotal: money.optional(),
+    orderId: z.string().trim().min(1).max(120).optional(),
   })
   .strict();
 

@@ -1,0 +1,1219 @@
+<main class="page" [attr.inert]="modalOpen() ? '' : null">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">{{ admin ? 'Platform administration' : 'Customers' }}</p>
+      <h1>Campaigns</h1>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      @if (admin) {
+        <button class="btn secondary" (click)="monitor.set(true)">Monitoring</button>
+      }
+      @if (canManage) {
+        <button class="btn" (click)="startNew()">
+          <app-icon name="plus" [size]="18" />Create Campaign
+        </button>
+      }
+    </div>
+  </header>
+  @if (error() && !modalOpen()) {
+    <p class="alert" role="alert">{{ error() }}</p>
+  }
+  @if (success()) {
+    <p class="notice" role="status">{{ success() }}</p>
+  }
+  <form class="toolbar campaign-filters" (ngSubmit)="load()">
+    <div class="field">
+      <label for="campaign-status">Status</label
+      ><select
+        appSelect
+        id="campaign-status"
+        name="status"
+        [(ngModel)]="status"
+        (ngModelChange)="load()"
+      >
+        <option value="">All campaigns</option>
+        @for (s of statuses; track s) {
+          <option [value]="s">{{ s }}</option>
+        }
+      </select>
+    </div>
+    @if (admin) {
+      <div class="field">
+        <label for="campaign-business-filter">Business ID</label
+        ><input id="campaign-business-filter" name="filter" [(ngModel)]="businessFilter" />
+      </div>
+    }
+    <button class="btn secondary" type="submit" [disabled]="loading()">Filter / refresh</button>
+  </form>
+  @if (loading()) {
+    <p role="status">Loading campaigns...</p>
+  } @else {
+    <div class="campaign-grid">
+      @for (c of rows(); track c._id) {
+        <article class="card campaign-card">
+          <div class="flex items-start justify-between gap-3">
+            <h2 class="break-words">{{ c.name }}</h2>
+            <span
+              class="badge shrink-0"
+              [class.success]="c.status === 'active'"
+              [class.warn]="c.status === 'paused' || c.status === 'scheduled'"
+              >{{ c.status }}</span
+            >
+          </div>
+          @if (admin || c.ownerType === 'platform') {
+            <span class="muted">{{ c.ownerType }} / {{ c.businessId }}</span>
+          }
+          <p class="campaign-offer">
+            {{ c.offer.discountValue
+            }}{{ c.offer.discountType === 'percent' ? '%' : ' ' + c.offer.currency }} off
+          </p>
+          <p class="muted">{{ c.campaignType }} / {{ c.offer.validityDays }} days validity</p>
+          <p class="mt-3">{{ scheduleLabel(c) }} / {{ c.trigger.sendTime }} {{ c.timezone }}</p>
+          <p class="muted">
+            {{ c.startDate | date: 'mediumDate' : 'UTC' }} /
+            {{ c.endDate | date: 'mediumDate' : 'UTC' }}
+          </p>
+          <div class="campaign-actions">
+            <button class="btn secondary sm" [disabled]="busy()" (click)="open(c)">View</button>
+            @if (canManage && (admin || c.ownerType === 'business')) {
+              @if (c.status === 'draft') {
+                <button class="btn secondary sm" (click)="startNew(undefined, c)">Edit</button>
+              }
+              <app-action-menu>
+                <div>
+                  <button class="btn secondary sm" (click)="duplicate(c)">Duplicate</button>
+                  @if (c.status === 'active' || c.status === 'scheduled') {
+                    <button class="btn secondary sm" (click)="requestAction(c, 'pause')">
+                      Pause
+                    </button>
+                  }
+                  @if (c.status === 'paused') {
+                    <button class="btn secondary sm" (click)="requestAction(c, 'resume')">
+                      Resume
+                    </button>
+                  }
+                  @if (!['completed', 'cancelled'].includes(c.status)) {
+                    <button class="btn secondary sm" (click)="requestAction(c, 'cancel')">
+                      Cancel
+                    </button>
+                  }
+                </div>
+              </app-action-menu>
+            }
+          </div>
+        </article>
+      } @empty {
+        <div class="card empty">No campaigns found.</div>
+      }
+    </div>
+  }
+  @if (pagination(); as p) {
+    <nav class="pager" aria-label="Campaign pages">
+      <button
+        class="btn secondary"
+        [disabled]="p.page <= 1 || loading()"
+        (click)="load(p.page - 1)"
+      >
+        Previous</button
+      ><span>{{ p.page }} / {{ p.totalPages }} / {{ p.total }} campaigns</span
+      ><button
+        class="btn secondary"
+        [disabled]="p.page >= p.totalPages || loading()"
+        (click)="load(p.page + 1)"
+      >
+        Next
+      </button>
+    </nav>
+  }
+</main>
+@if (modalOpen()) {
+  <div class="campaign-overlay">
+    <section
+      class="campaign-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="campaign-modal-title"
+      appDialogFocus
+      (keydown.escape)="close(); $event.stopPropagation()"
+    >
+      <header class="campaign-dialog-header">
+        <div>
+          <p class="eyebrow">{{ editing() ? 'Step ' + step() + ' of 5' : 'Campaigns' }}</p>
+          <h2 id="campaign-modal-title" tabindex="-1">
+            {{
+              discard()
+                ? 'Discard changes?'
+                : assignmentTemplate()
+                  ? 'Assign template'
+                  : preview()
+                    ? 'Template preview'
+                    : editing()
+                      ? steps[step() - 1]
+                      : monitor()
+                        ? 'Execution monitoring'
+                        : pendingAction()
+                          ? 'Confirm action'
+                          : 'Campaign details'
+            }}
+          </h2>
+        </div>
+        <button
+          class="btn secondary sm"
+          aria-label="Close dialog"
+          [disabled]="busy()"
+          (click)="close()"
+        >
+          <app-icon name="close" [size]="18" />
+        </button>
+      </header>
+      <div class="campaign-dialog-body">
+        @if (error()) {
+          <p class="alert" role="alert">{{ error() }}</p>
+        }
+        @if (success()) {
+          <p class="notice" role="status">{{ success() }}</p>
+        }
+        @if (discard()) {
+          <p>Your unsaved campaign changes will be lost.</p>
+          <div class="flex gap-2 mt-4">
+            <button class="btn secondary" (click)="discard.set(false); resolveLeave(false)">
+              Keep editing</button
+            ><button class="btn" (click)="close(true)">Discard changes</button>
+          </div>
+        } @else if (assignmentTemplate(); as t) {
+          <h3>Assign {{ t.name }}</h3>
+          <p class="muted">Creates platform-owned drafts for review.</p>
+          <app-campaign-picker
+            resource="businesses"
+            [admin]="true"
+            [multiple]="true"
+            [selected]="chosenBusinesses"
+            (selectionChange)="assignmentIds = $event.join(',')"
+          />
+          <div class="flex flex-wrap gap-2 mt-4">
+            <button type="button" class="btn secondary" [disabled]="busy()" (click)="assign(t)">
+              Assign selected
+            </button>
+          </div>
+          <details class="advanced">
+            <summary>All active businesses</summary>
+            <label
+              ><input type="checkbox" [(ngModel)]="assignmentConfirmed" /> Confirm assignment to all
+              active businesses</label
+            ><button
+              class="btn secondary mt-3"
+              [disabled]="busy() || !assignmentConfirmed"
+              (click)="assignAll(t)"
+            >
+              Assign all
+            </button>
+          </details>
+        } @else if (monitor()) {
+          <app-campaign-monitoring (inspect)="monitor.set(false); open({ _id: $event })" />
+        } @else if (preview(); as t) {
+          <h3>{{ t.name }}</h3>
+          <p class="muted">{{ templateTrigger(t) }} / Email</p>
+          @if ('input' in t) {
+            <p class="campaign-offer">
+              {{ t.input.offer.discountValue
+              }}{{ t.input.offer.discountType === 'percent' ? '%' : ' ' + t.input.offer.currency }}
+              off
+            </p>
+            <p>{{ t.input.offer.validityDays }} days / {{ t.input.audience.type }}</p>
+          } @else {
+            <p class="campaign-offer">20% off</p>
+            <p class="muted">7 days validity / Customize in the next step</p>
+          }
+          <button class="btn mt-4" (click)="startNew(t)">Use Template</button>
+        } @else if (editing()) {
+          <form novalidate id="campaign-builder" #campaignForm="ngForm" (ngSubmit)="next()">
+            @switch (step()) {
+              @case (1) {
+                <div class="template-grid">
+                  @for (t of templates(); track t.id) {
+                    <article class="template-card">
+                      <div class="template-icon">
+                        <app-icon [name]="templateIcon(t)" [size]="24" />
+                      </div>
+                      <h3>{{ t.name }}</h3>
+                      <div class="flex flex-wrap gap-2 mt-3">
+                        <button type="button" class="btn secondary sm" (click)="previewTemplate(t)">
+                          Preview</button
+                        ><button type="button" class="btn secondary sm" (click)="startNew(t)">
+                          Use Template
+                        </button>
+                      </div>
+                    </article>
+                  }
+                  @for (t of globalTemplates(); track t._id) {
+                    <article class="template-card">
+                      <div class="template-icon"><app-icon name="sparkles" [size]="24" /></div>
+                      <h3>{{ t.name }}</h3>
+                      <button type="button" class="btn secondary sm" (click)="previewTemplate(t)">
+                        Preview</button
+                      ><button type="button" class="btn secondary sm" (click)="startNew(t)">
+                        Use Template
+                      </button>
+                      @if (admin) {
+                        <button
+                          type="button"
+                          class="btn secondary sm"
+                          (click)="
+                            assignmentTemplate.set(t);
+                            assignmentConfirmed = false;
+                            assignmentIds = ''
+                          "
+                        >
+                          Assign
+                        </button>
+                      }
+                    </article>
+                  }
+                  <article class="template-card">
+                    <div class="template-icon"><app-icon name="plus" [size]="24" /></div>
+                    <h3>Custom</h3>
+                    <button type="button" class="btn secondary sm mt-3" (click)="goStep(2)">
+                      Start custom
+                    </button>
+                  </article>
+                </div>
+              }
+              @case (2) {
+                @if (admin) {
+                  <div id="camp-business">
+                    <h3>Target business</h3>
+                    @if (errors()['camp-business']) {
+                      <span id="camp-business-error" class="error" role="alert">{{
+                        errors()['camp-business']
+                      }}</span>
+                    }
+                    <app-campaign-picker
+                      resource="businesses"
+                      [admin]="true"
+                      [selected]="targetBusiness ? [targetBusiness] : []"
+                      [disabled]="!!editId"
+                      (selectionChange)="selectTarget($event)"
+                    />
+                  </div>
+                }
+                <div class="field">
+                  <label for="camp-name">Campaign name</label
+                  ><input
+                    id="camp-name"
+                    [attr.aria-invalid]="errors()['camp-name'] ? true : null"
+                    [attr.aria-describedby]="errors()['camp-name'] ? 'camp-name-error' : null"
+                    name="name"
+                    [(ngModel)]="config.name"
+                    required
+                    maxlength="120"
+                  />
+                  @if (errors()['camp-name']) {
+                    <span id="camp-name-error" class="error" role="alert">{{
+                      errors()['camp-name']
+                    }}</span>
+                  }
+                </div>
+                <details class="advanced" [open]="validationShown()">
+                  <summary>Message and type</summary>
+                  <div class="field">
+                    <label for="camp-description">Description / message</label
+                    ><textarea
+                      id="camp-description"
+                      name="description"
+                      [(ngModel)]="config.description"
+                      maxlength="2000"
+                    ></textarea>
+                  </div>
+                  <div class="field">
+                    <label for="camp-type">Type</label
+                    ><select
+                      appSelect
+                      id="camp-type"
+                      [attr.aria-invalid]="errors()['camp-type'] ? true : null"
+                      [attr.aria-describedby]="errors()['camp-type'] ? 'camp-type-error' : null"
+                      name="type"
+                      [(ngModel)]="config.campaignType"
+                    >
+                      @for (
+                        t of ['promotion', 'retention', 'welcome', 'loyalty', 'seasonal', 'custom'];
+                        track t
+                      ) {
+                        <option [value]="t">{{ label(t) }}</option>
+                      }
+                    </select>
+                    @if (errors()['camp-type']) {
+                      <span id="camp-type-error" class="error" role="alert">{{
+                        errors()['camp-type']
+                      }}</span>
+                    }
+                  </div>
+                </details>
+                <div class="grid gap-4 sm:grid-cols-3">
+                  <div class="field">
+                    <label for="camp-discount">Discount</label
+                    ><select
+                      appSelect
+                      id="camp-discount"
+                      [attr.aria-invalid]="errors()['camp-discount'] ? true : null"
+                      [attr.aria-describedby]="
+                        errors()['camp-discount'] ? 'camp-discount-error' : null
+                      "
+                      name="discountType"
+                      [(ngModel)]="config.offer.discountType"
+                    >
+                      <option value="percent">Percentage</option>
+                      <option value="fixed">Fixed amount</option>
+                    </select>
+                    @if (errors()['camp-discount']) {
+                      <span id="camp-discount-error" class="error" role="alert">{{
+                        errors()['camp-discount']
+                      }}</span>
+                    }
+                  </div>
+                  <div class="field">
+                    <label for="camp-value">Value</label
+                    ><input
+                      id="camp-value"
+                      [attr.aria-invalid]="errors()['camp-value'] ? true : null"
+                      [attr.aria-describedby]="errors()['camp-value'] ? 'camp-value-error' : null"
+                      type="number"
+                      name="value"
+                      [(ngModel)]="config.offer.discountValue"
+                      required
+                      min="0.01"
+                      [max]="config.offer.discountType === 'percent' ? 100 : 1000000"
+                      step="0.01"
+                    />
+                    @if (errors()['camp-value']) {
+                      <span id="camp-value-error" class="error" role="alert">{{
+                        errors()['camp-value']
+                      }}</span>
+                    }
+                  </div>
+                  <div class="field">
+                    <label for="camp-validity">Validity (days)</label
+                    ><input
+                      id="camp-validity"
+                      [attr.aria-invalid]="errors()['camp-validity'] ? true : null"
+                      [attr.aria-describedby]="
+                        errors()['camp-validity'] ? 'camp-validity-error' : null
+                      "
+                      type="number"
+                      name="validity"
+                      [(ngModel)]="config.offer.validityDays"
+                      required
+                      min="1"
+                      max="365"
+                    />
+                    @if (errors()['camp-validity']) {
+                      <span id="camp-validity-error" class="error" role="alert">{{
+                        errors()['camp-validity']
+                      }}</span>
+                    }
+                  </div>
+                </div>
+                <details class="advanced" [open]="validationShown()">
+                  <summary>Offer settings</summary>
+                  <div class="field">
+                    <label for="camp-overlap">Overlapping offers</label
+                    ><select
+                      appSelect
+                      id="camp-overlap"
+                      [attr.aria-invalid]="errors()['camp-overlap'] ? true : null"
+                      [attr.aria-describedby]="
+                        errors()['camp-overlap'] ? 'camp-overlap-error' : null
+                      "
+                      name="offerPolicy"
+                      [(ngModel)]="config.offerPolicy"
+                    >
+                      <option value="exclusive">One active offer per customer</option>
+                      <option value="parallel">
+                        Allow multiple active offers (one code per order)
+                      </option></select
+                    ><span class="muted"
+                      >Multiple offers are allowed only when every overlapping campaign permits
+                      them.</span
+                    >
+                  </div>
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="field">
+                      <label for="camp-currency">Currency</label
+                      ><input
+                        id="camp-currency"
+                        [attr.aria-invalid]="errors()['camp-currency'] ? true : null"
+                        [attr.aria-describedby]="
+                          errors()['camp-currency'] ? 'camp-currency-error' : null
+                        "
+                        name="currency"
+                        [(ngModel)]="config.offer.currency"
+                        pattern="[A-Z]{3}"
+                        required
+                      />
+                      @if (errors()['camp-currency']) {
+                        <span id="camp-currency-error" class="error" role="alert">{{
+                          errors()['camp-currency']
+                        }}</span>
+                      }
+                    </div>
+
+                    <div class="field">
+                      <label for="camp-min">Minimum purchase</label
+                      ><input
+                        id="camp-min"
+                        [attr.aria-invalid]="errors()['camp-min'] ? true : null"
+                        [attr.aria-describedby]="errors()['camp-min'] ? 'camp-min-error' : null"
+                        type="number"
+                        name="min"
+                        [(ngModel)]="config.offer.minSpend"
+                        min="0"
+                        step="0.01"
+                      />
+                      @if (errors()['camp-min']) {
+                        <span id="camp-min-error" class="error" role="alert">{{
+                          errors()['camp-min']
+                        }}</span>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="camp-max">Maximum discount</label
+                      ><input
+                        id="camp-max"
+                        [attr.aria-invalid]="errors()['camp-max'] ? true : null"
+                        [attr.aria-describedby]="errors()['camp-max'] ? 'camp-max-error' : null"
+                        type="number"
+                        name="max"
+                        [(ngModel)]="config.offer.maxDiscount"
+                        min="0.01"
+                        step="0.01"
+                      />
+                      @if (errors()['camp-max']) {
+                        <span id="camp-max-error" class="error" role="alert">{{
+                          errors()['camp-max']
+                        }}</span>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="camp-limit">Total offer limit</label
+                      ><input
+                        id="camp-limit"
+                        [attr.aria-invalid]="errors()['camp-limit'] ? true : null"
+                        [attr.aria-describedby]="errors()['camp-limit'] ? 'camp-limit-error' : null"
+                        type="number"
+                        name="limit"
+                        [(ngModel)]="config.usageLimit"
+                        required
+                        min="1"
+                        max="1000000"
+                      />
+                      @if (errors()['camp-limit']) {
+                        <span id="camp-limit-error" class="error" role="alert">{{
+                          errors()['camp-limit']
+                        }}</span>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="camp-customer-limit">Offers per customer across campaign</label
+                      ><input
+                        id="camp-customer-limit"
+                        [attr.aria-invalid]="errors()['camp-customer-limit'] ? true : null"
+                        [attr.aria-describedby]="
+                          errors()['camp-customer-limit'] ? 'camp-customer-limit-error' : null
+                        "
+                        type="number"
+                        name="customerLimit"
+                        [(ngModel)]="config.perCustomerLimit"
+                        required
+                        min="1"
+                        max="1000"
+                      />
+                      @if (errors()['camp-customer-limit']) {
+                        <span class="error" role="alert">{{
+                          errors()['camp-customer-limit']
+                        }}</span>
+                      }
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="camp-terms">Offer terms</label
+                    ><textarea
+                      id="camp-terms"
+                      name="terms"
+                      [(ngModel)]="config.offer.terms"
+                      maxlength="2000"
+                    ></textarea>
+                  </div>
+                  <div class="field">
+                    <label for="camp-priority">Priority</label
+                    ><input
+                      id="camp-priority"
+                      [attr.aria-invalid]="errors()['camp-priority'] ? true : null"
+                      [attr.aria-describedby]="
+                        errors()['camp-priority'] ? 'camp-priority-error' : null
+                      "
+                      name="priority"
+                      type="number"
+                      min="0"
+                      max="100"
+                      [(ngModel)]="config.priority"
+                    />
+                    @if (errors()['camp-priority']) {
+                      <span id="camp-priority-error" class="error" role="alert">{{
+                        errors()['camp-priority']
+                      }}</span>
+                    }
+                  </div>
+                </details>
+              }
+              @case (3) {
+                <div class="field">
+                  <label for="camp-audience">Audience</label
+                  ><select
+                    appSelect
+                    id="camp-audience"
+                    [attr.aria-invalid]="errors()['camp-audience'] ? true : null"
+                    [attr.aria-describedby]="
+                      errors()['camp-audience'] ? 'camp-audience-error' : null
+                    "
+                    name="audience"
+                    [(ngModel)]="config.audience.type"
+                  >
+                    @for (t of audiences; track t) {
+                      <option [value]="t">{{ label(t) }}</option>
+                    }
+                  </select>
+                  @if (errors()['camp-overlap']) {
+                    <span id="camp-overlap-error" class="error" role="alert">{{
+                      errors()['camp-overlap']
+                    }}</span>
+                  }
+                </div>
+                @if (config.audience.type === 'selected') {
+                  <app-campaign-picker
+                    resource="contacts"
+                    [businessId]="targetBusiness"
+                    [admin]="admin"
+                    [multiple]="true"
+                    [selected]="chosenContacts"
+                    (selectionChange)="selectedIds = $event.join(',')"
+                  />
+                }
+                <details class="advanced" [open]="validationShown()">
+                  <summary>Targeting filters</summary>
+                  <div class="field">
+                    <label for="camp-tags">Required tags (comma separated)</label
+                    ><input
+                      id="camp-tags"
+                      [attr.aria-invalid]="errors()['camp-tags'] ? true : null"
+                      [attr.aria-describedby]="errors()['camp-tags'] ? 'camp-tags-error' : null"
+                      name="tags"
+                      [(ngModel)]="tags"
+                    />
+                    @if (errors()['camp-tags']) {
+                      <span id="camp-tags-error" class="error" role="alert">{{
+                        errors()['camp-tags']
+                      }}</span>
+                    }
+                  </div>
+                  <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="field">
+                      <label for="camp-segment">Segment</label
+                      ><input
+                        id="camp-segment"
+                        [attr.aria-invalid]="errors()['camp-segment'] ? true : null"
+                        [attr.aria-describedby]="
+                          errors()['camp-segment'] ? 'camp-segment-error' : null
+                        "
+                        name="segment"
+                        [(ngModel)]="config.audience.segment"
+                      />
+                      @if (errors()['camp-segment']) {
+                        <span id="camp-segment-error" class="error" role="alert">{{
+                          errors()['camp-segment']
+                        }}</span>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="camp-loyalty">Loyalty level</label
+                      ><input
+                        id="camp-loyalty"
+                        [attr.aria-invalid]="errors()['camp-loyalty'] ? true : null"
+                        [attr.aria-describedby]="
+                          errors()['camp-loyalty'] ? 'camp-loyalty-error' : null
+                        "
+                        name="loyalty"
+                        [(ngModel)]="config.audience.loyaltyLevel"
+                      />
+                      @if (errors()['camp-loyalty']) {
+                        <span id="camp-loyalty-error" class="error" role="alert">{{
+                          errors()['camp-loyalty']
+                        }}</span>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="camp-inactive">Inactive for days</label
+                      ><input
+                        id="camp-inactive"
+                        [attr.aria-invalid]="errors()['camp-inactive'] ? true : null"
+                        [attr.aria-describedby]="
+                          errors()['camp-inactive'] ? 'camp-inactive-error' : null
+                        "
+                        name="inactive"
+                        type="number"
+                        min="1"
+                        max="3650"
+                        [(ngModel)]="config.audience.inactiveDays"
+                        required
+                      />
+                      @if (errors()['camp-inactive']) {
+                        <span id="camp-inactive-error" class="error" role="alert">{{
+                          errors()['camp-inactive']
+                        }}</span>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="camp-new">New within days</label
+                      ><input
+                        id="camp-new"
+                        [attr.aria-invalid]="errors()['camp-new'] ? true : null"
+                        [attr.aria-describedby]="errors()['camp-new'] ? 'camp-new-error' : null"
+                        name="new"
+                        type="number"
+                        min="1"
+                        max="365"
+                        [(ngModel)]="config.audience.newDays"
+                        required
+                      />
+                      @if (errors()['camp-new']) {
+                        <span id="camp-new-error" class="error" role="alert">{{
+                          errors()['camp-new']
+                        }}</span>
+                      }
+                    </div>
+                    <div class="field">
+                      <label for="camp-interactions">Minimum feedback interactions</label
+                      ><input
+                        id="camp-interactions"
+                        [attr.aria-invalid]="errors()['camp-interactions'] ? true : null"
+                        [attr.aria-describedby]="
+                          errors()['camp-interactions'] ? 'camp-interactions-error' : null
+                        "
+                        name="interactions"
+                        type="number"
+                        min="0"
+                        [(ngModel)]="config.audience.minInteractions"
+                        required
+                      />
+                      @if (errors()['camp-interactions']) {
+                        <span id="camp-interactions-error" class="error" role="alert">{{
+                          errors()['camp-interactions']
+                        }}</span>
+                      }
+                    </div>
+                  </div>
+                </details>
+                <p class="muted">
+                  Filters combine. Audience count is calculated before activation.
+                </p>
+              }
+              @case (4) {
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="field">
+                    <label for="camp-start">Campaign starts (UTC)</label
+                    ><input
+                      id="camp-start"
+                      [attr.aria-invalid]="errors()['camp-start'] ? true : null"
+                      [attr.aria-describedby]="errors()['camp-start'] ? 'camp-start-error' : null"
+                      type="datetime-local"
+                      name="start"
+                      [(ngModel)]="start"
+                      required
+                    />
+                    @if (errors()['camp-start']) {
+                      <span id="camp-start-error" class="error" role="alert">{{
+                        errors()['camp-start']
+                      }}</span>
+                    }
+                  </div>
+                  <div class="field">
+                    <label for="camp-end">Campaign ends (UTC)</label
+                    ><input
+                      id="camp-end"
+                      [attr.aria-invalid]="errors()['camp-end'] ? true : null"
+                      [attr.aria-describedby]="errors()['camp-end'] ? 'camp-end-error' : null"
+                      type="datetime-local"
+                      name="end"
+                      [(ngModel)]="end"
+                      required
+                    />
+                    @if (errors()['camp-end']) {
+                      <span id="camp-end-error" class="error" role="alert">{{
+                        errors()['camp-end']
+                      }}</span>
+                    }
+                  </div>
+                  <div class="field">
+                    <label for="camp-timezone">Schedule timezone</label
+                    ><input
+                      id="camp-timezone"
+                      [attr.aria-invalid]="errors()['camp-timezone'] ? true : null"
+                      [attr.aria-describedby]="
+                        errors()['camp-timezone'] ? 'camp-timezone-error' : null
+                      "
+                      name="timezone"
+                      [(ngModel)]="config.timezone"
+                      required
+                    />
+                    @if (errors()['camp-timezone']) {
+                      <span id="camp-timezone-error" class="error" role="alert">{{
+                        errors()['camp-timezone']
+                      }}</span>
+                    }
+                  </div>
+                  <div class="field">
+                    <label for="camp-trigger">Trigger / recurrence</label
+                    ><select
+                      appSelect
+                      id="camp-trigger"
+                      [attr.aria-invalid]="errors()['camp-trigger'] ? true : null"
+                      [attr.aria-describedby]="
+                        errors()['camp-trigger'] ? 'camp-trigger-error' : null
+                      "
+                      name="trigger"
+                      [(ngModel)]="config.trigger.type"
+                    >
+                      @for (t of triggers; track t) {
+                        <option [value]="t">{{ label(t) }}</option>
+                      }
+                    </select>
+                    @if (errors()['camp-trigger']) {
+                      <span id="camp-trigger-error" class="error" role="alert">{{
+                        errors()['camp-trigger']
+                      }}</span>
+                    }
+                  </div>
+                  <div class="field">
+                    <label for="camp-time">Send after (local time)</label
+                    ><input
+                      id="camp-time"
+                      [attr.aria-invalid]="errors()['camp-time'] ? true : null"
+                      [attr.aria-describedby]="errors()['camp-time'] ? 'camp-time-error' : null"
+                      type="time"
+                      name="sendTime"
+                      [(ngModel)]="config.trigger.sendTime"
+                      required
+                    />
+                    @if (errors()['camp-time']) {
+                      <span id="camp-time-error" class="error" role="alert">{{
+                        errors()['camp-time']
+                      }}</span>
+                    }
+                  </div>
+                  <div class="field">
+                    <label for="camp-time-end">Send until (local time)</label
+                    ><input
+                      id="camp-time-end"
+                      [attr.aria-invalid]="errors()['camp-time-end'] ? true : null"
+                      [attr.aria-describedby]="
+                        errors()['camp-time-end'] ? 'camp-time-end-error' : null
+                      "
+                      type="time"
+                      name="endTime"
+                      [(ngModel)]="config.trigger.endTime"
+                      required
+                    />
+                    @if (errors()['camp-time-end']) {
+                      <span id="camp-time-end-error" class="error" role="alert">{{
+                        errors()['camp-time-end']
+                      }}</span>
+                    }
+                  </div>
+                </div>
+                @if (config.trigger.type === 'weekly') {
+                  <fieldset>
+                    <legend>Weekdays</legend>
+                    @for (d of weekdays; track d; let i = $index) {
+                      <label class="mr-3"
+                        ><input
+                          type="checkbox"
+                          [checked]="config.trigger.weekdays.includes(i)"
+                          (change)="toggleDay(i)"
+                        />{{ d }}</label
+                      >
+                    }
+                  </fieldset>
+                }
+                @if (config.trigger.type === 'monthly' || config.trigger.type === 'yearly') {
+                  <div class="field">
+                    <label for="camp-day">Day of month</label
+                    ><input
+                      id="camp-day"
+                      [attr.aria-invalid]="errors()['camp-day'] ? true : null"
+                      [attr.aria-describedby]="errors()['camp-day'] ? 'camp-day-error' : null"
+                      type="number"
+                      name="day"
+                      min="1"
+                      max="31"
+                      [(ngModel)]="config.trigger.dayOfMonth"
+                      required
+                    />
+                    @if (errors()['camp-day']) {
+                      <span id="camp-day-error" class="error" role="alert">{{
+                        errors()['camp-day']
+                      }}</span>
+                    }
+                  </div>
+                }
+                @if (config.trigger.type === 'yearly') {
+                  <div class="field">
+                    <label for="camp-month">Month</label
+                    ><input
+                      id="camp-month"
+                      [attr.aria-invalid]="errors()['camp-month'] ? true : null"
+                      [attr.aria-describedby]="errors()['camp-month'] ? 'camp-month-error' : null"
+                      type="number"
+                      name="month"
+                      min="1"
+                      max="12"
+                      [(ngModel)]="config.trigger.month"
+                      required
+                    />
+                    @if (errors()['camp-month']) {
+                      <span id="camp-month-error" class="error" role="alert">{{
+                        errors()['camp-month']
+                      }}</span>
+                    }
+                  </div>
+                }
+                @if (config.trigger.type === 'birthday' || config.trigger.type === 'anniversary') {
+                  <div class="field">
+                    <label for="camp-before">Days before occasion</label
+                    ><input
+                      id="camp-before"
+                      [attr.aria-invalid]="errors()['camp-before'] ? true : null"
+                      [attr.aria-describedby]="errors()['camp-before'] ? 'camp-before-error' : null"
+                      type="number"
+                      name="before"
+                      min="0"
+                      max="30"
+                      [(ngModel)]="config.trigger.daysBefore"
+                      required
+                    />
+                    @if (errors()['camp-before']) {
+                      <span id="camp-before-error" class="error" role="alert">{{
+                        errors()['camp-before']
+                      }}</span>
+                    }
+                  </div>
+                }
+              }
+              @case (5) {
+                <dl class="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <dt>Campaign</dt>
+                    <dd>{{ config.name }}</dd>
+                  </div>
+                  <div>
+                    <dt>Audience</dt>
+                    <dd>{{ config.audience.type }}</dd>
+                  </div>
+                  <div>
+                    <dt>Schedule</dt>
+                    <dd>{{ start }} – {{ end }} UTC</dd>
+                  </div>
+                  <div>
+                    <dt>Recurrence</dt>
+                    <dd>
+                      {{ config.trigger.type }} · {{ config.trigger.sendTime }}–{{
+                        config.trigger.endTime
+                      }}
+                      {{ config.timezone }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Offer</dt>
+                    <dd>
+                      {{ config.offer.discountValue }} {{ config.offer.discountType }} · valid
+                      {{ config.offer.validityDays }} days
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Channel</dt>
+                    <dd>Email</dd>
+                  </div>
+                </dl>
+                <p class="muted">Next, confirm the saved campaign and its estimated audience.</p>
+                @if (admin) {
+                  <button
+                    class="btn secondary"
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="saveTemplate()"
+                  >
+                    Save global template
+                  </button>
+                }
+              }
+            }
+            @if (fieldError()) {
+              <p class="error mt-3" role="alert">{{ fieldError() }}</p>
+            }
+          </form>
+        } @else {
+          @if (!pendingAction()) {
+            @if (detail(); as d) {
+              <section aria-labelledby="campaign-detail-title">
+                <div class="flex justify-between">
+                  <h2 id="campaign-detail-title">{{ d.campaign.name }}</h2>
+                  <button class="btn secondary sm" (click)="close()">Close</button>
+                </div>
+                <p>{{ d.campaign.description }}</p>
+                <dl class="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <dt>Estimated audience</dt>
+                    <dd>{{ d.estimatedRecipients }}</dd>
+                  </div>
+                  <div>
+                    <dt>Audience</dt>
+                    <dd>{{ d.campaign.audience.type }}</dd>
+                  </div>
+                  <div>
+                    <dt>Offer / validity</dt>
+                    <dd>
+                      {{ d.campaign.offer.discountValue }} {{ d.campaign.offer.discountType }} ·
+                      {{ d.campaign.offer.validityDays }} days
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Campaign dates</dt>
+                    <dd>
+                      {{ d.campaign.startDate | date: 'medium' }} –
+                      {{ d.campaign.endDate | date: 'medium' }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Schedule</dt>
+                    <dd>
+                      {{ d.campaign.trigger.type }} · {{ d.campaign.trigger.weekdays.join(', ') }} ·
+                      {{ d.campaign.trigger.sendTime }}–{{ d.campaign.trigger.endTime }}
+                      {{ d.campaign.timezone }}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Channel</dt>
+                    <dd>Email</dd>
+                  </div>
+                  @for (
+                    m of [
+                      'targeted',
+                      'sent',
+                      'delivered',
+                      'failed',
+                      'issued',
+                      'redeemed',
+                      'skipped',
+                      'reconciliation',
+                    ];
+                    track m
+                  ) {
+                    <div>
+                      <dt>{{ label(m) }}</dt>
+                      <dd>{{ metric(d, m) }}</dd>
+                    </div>
+                  }
+                  <div>
+                    <dt>Redemption rate (redeemed / issued offers)</dt>
+                    <dd>
+                      {{
+                        d.metrics.redemptionRate === null
+                          ? '—'
+                          : (d.metrics.redemptionRate | number: '1.0-1') + '%'
+                      }}
+                    </dd>
+                  </div>
+                </dl>
+                @if (
+                  canManage &&
+                  (admin || d.campaign.ownerType === 'business') &&
+                  d.campaign.status === 'draft'
+                ) {
+                  <div class="btns flex flex-wrap items-center gap-2">
+                    <button
+                      class="btn"
+                      [disabled]="busy()"
+                      (click)="requestAction(d.campaign, 'activate')"
+                    >
+                      Review & activate</button
+                    ><button
+                      class="btn secondary"
+                      [disabled]="busy()"
+                      (click)="requestAction(d.campaign, 'schedule')"
+                    >
+                      Review & schedule
+                    </button>
+                  </div>
+                }
+                <details class="advanced">
+                  <summary>Advanced rules</summary>
+                  <dl class="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <dt>Business / ownership</dt>
+                      <dd>{{ d.campaign.businessId }} / {{ d.campaign.ownerType }}</dd>
+                    </div>
+                    <div>
+                      <dt>Offer policy / priority</dt>
+                      <dd>{{ d.campaign.offerPolicy }} / {{ d.campaign.priority }}</dd>
+                    </div>
+                    <div>
+                      <dt>Issuance limits</dt>
+                      <dd>
+                        {{ d.campaign.usageLimit }} total / {{ d.campaign.perCustomerLimit }} per
+                        customer
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Purchase limits</dt>
+                      <dd>
+                        Minimum: {{ d.campaign.offer.minSpend ?? 'None' }} / Maximum discount:
+                        {{ d.campaign.offer.maxDiscount ?? 'None' }} {{ d.campaign.offer.currency }}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Terms</dt>
+                      <dd>{{ d.campaign.offer.terms || 'None' }}</dd>
+                    </div>
+                    <div>
+                      <dt>Customer filters</dt>
+                      <dd>
+                        Tags: {{ d.campaign.audience.tags.join(', ') || 'None' }} / Segment:
+                        {{ d.campaign.audience.segment || 'None' }} / Loyalty:
+                        {{ d.campaign.audience.loyaltyLevel || 'None' }}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Customer windows</dt>
+                      <dd>
+                        Inactive: {{ d.campaign.audience.inactiveDays }} days / New:
+                        {{ d.campaign.audience.newDays }} days / Minimum interactions:
+                        {{ d.campaign.audience.minInteractions }}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Calendar rule</dt>
+                      <dd>
+                        Day: {{ d.campaign.trigger.dayOfMonth }} / Month:
+                        {{ d.campaign.trigger.month }} / Days before occasion:
+                        {{ d.campaign.trigger.daysBefore }}
+                      </dd>
+                    </div>
+                  </dl>
+                </details>
+                <h3 class="mt-5">Execution history</h3>
+                @for (e of d.executions; track e._id) {
+                  <p>
+                    {{ e.at | date: 'medium' }} · {{ e.window }} · {{ e.status }} ·
+                    {{ e.targeted }} targeted
+                  </p>
+                } @empty {
+                  <p class="muted">No executions yet.</p>
+                }
+                <h3>Recipient history</h3>
+                @for (r of d.recipients; track r._id) {
+                  <p>
+                    {{ r.contactId }} · {{ r.status }} · {{ r.attempts }} attempts
+                    @if (r.error) {
+                      <span class="error">{{ r.error }}</span>
+                    }
+                    @for (event of r.deliveryEvents ?? []; track $index) {
+                      <span class="muted">
+                        · {{ event.type }} {{ event.occurredAt | date: 'medium' }}</span
+                      >
+                    }
+                  </p>
+                } @empty {
+                  <p class="muted">No recipients yet.</p>
+                }
+                <nav class="pager" aria-label="Recipient pages">
+                  <button
+                    class="btn secondary"
+                    [disabled]="d.pagination.page <= 1 || busy()"
+                    (click)="open(d.campaign, d.pagination.page - 1)"
+                  >
+                    Previous</button
+                  ><span>{{ d.pagination.total }} recipients</span
+                  ><button
+                    class="btn secondary"
+                    [disabled]="d.pagination.page >= d.pagination.totalPages || busy()"
+                    (click)="open(d.campaign, d.pagination.page + 1)"
+                  >
+                    Next
+                  </button>
+                </nav>
+              </section>
+            }
+          }
+          @if (pendingAction(); as p) {
+            <section>
+              <h2 id="campaign-confirm-title">Confirm {{ p.action }}</h2>
+              <h3>{{ p.campaign.name }}</h3>
+              <p>Audience: {{ p.campaign.audience.type }}</p>
+              @if (p.count !== undefined) {
+                <p>
+                  <strong>{{ p.count }} estimated recipients</strong>
+                </p>
+                @if (p.count >= 500) {
+                  <p class="notice">
+                    Large campaign: check the recipient count and schedule carefully.
+                  </p>
+                }
+              }
+              <p>
+                {{ p.campaign.startDate | date: 'medium' }} –
+                {{ p.campaign.endDate | date: 'medium' }}
+              </p>
+              <p>
+                {{ p.campaign.trigger.type }} · {{ p.campaign.trigger.sendTime }}–{{
+                  p.campaign.trigger.endTime
+                }}
+                {{ p.campaign.timezone }}
+              </p>
+              <p>
+                Offer: {{ p.campaign.offer.discountValue }} {{ p.campaign.offer.discountType }},
+                valid {{ p.campaign.offer.validityDays }} days
+              </p>
+              <p>Email</p>
+              <label
+                ><input type="checkbox" [(ngModel)]="confirmation" /> I reviewed this campaign and
+                confirm this action.</label
+              >
+              <div class="btns mt-5 flex flex-wrap items-center gap-2">
+                <button class="btn secondary" [disabled]="busy()" (click)="close()">Back</button
+                ><button class="btn" [disabled]="!confirmation || busy()" (click)="executeAction()">
+                  Confirm {{ p.action }}
+                </button>
+              </div>
+            </section>
+          }
+
+          @if (busy()) {
+            <p role="status">Loading...</p>
+          }
+        }
+      </div>
+      @if (editing() && !discard() && !preview() && !assignmentTemplate()) {
+        <footer class="campaign-dialog-footer">
+          <div class="flex gap-2">
+            @if (step() > 1) {
+              <button class="btn secondary" [disabled]="busy()" (click)="goStep(step() - 1)">
+                Back
+              </button>
+            }
+            <button class="btn secondary" [disabled]="busy()" (click)="save()">Save Draft</button>
+          </div>
+          <button class="btn" type="button" (click)="next()" [disabled]="busy()">
+            {{ step() < 5 ? 'Next' : reviewAction }}
+          </button>
+        </footer>
+      }
+    </section>
+  </div>
+}

@@ -65,3 +65,7 @@ Use mail.godigitalvantage.com only; configurable display-name sender aliases and
 ## Restricted email testing
 
 Restricted Resend test mode is opt-in and independent of EMAIL_ENABLED. Only exact normalized RESEND_TEST_EMAIL is allowed; no redirection. RESEND_TEST_FROM_EMAIL must resolve to onboarding@resend.dev; production senders remain restricted to mail.godigitalvantage.com. Test mode bypasses custom-domain lookup only, retaining webhook/HTTPS/token/auth/idempotency controls.
+
+## Campaign Management Engine
+
+M-CAMP (2026-10-20): tenant-bound platform campaigns; configuration-only templates; existing discount reward issuance/redemption and Resend provider; owner/member permission mapping; bounded bearer-triggered serverless worker; no TTL takeover for unknown external-send locks. Email only; no invented channels/events. See [campaigns](campaigns.md) for semantics, migration, operational reconciliation and limits.

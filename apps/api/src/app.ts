@@ -1,4 +1,7 @@
 import { InstantRewardsService } from './modules/instant-rewards/instant-reward.service';
+import { createCampaignRouter } from './modules/campaigns/campaign.routes';
+import { createCampaignCronRouter } from './modules/campaigns/campaign.cron';
+import { createMarketingPublicRouter } from './modules/campaigns/campaign.marketing';
 import {
   createInstantRewardRouter,
   createInstantRewardWebhook,
@@ -39,6 +42,8 @@ export function createApp(rewards = new InstantRewardsService()) {
   app.use(cookieParser());
 
   app.use('/api/v1/health', healthRouter);
+  app.use(createCampaignCronRouter());
+  app.use(createMarketingPublicRouter());
   app.use('/api/v1', createPublicRouter());
   app.use(
     '/api/v1',
@@ -51,6 +56,7 @@ export function createApp(rewards = new InstantRewardsService()) {
     createQrRouter(),
     createCrmRouter(),
     createRewardRouter(),
+    createCampaignRouter(),
   );
 
   app.use(notFoundHandler);

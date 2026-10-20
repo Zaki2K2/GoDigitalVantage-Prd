@@ -109,12 +109,14 @@ export const REWARD_STATUSES = [
 export type RewardStatus = (typeof REWARD_STATUSES)[number];
 
 export interface RewardDoc {
+  campaignRecipientId?: Types.ObjectId | null;
+  campaignId?: Types.ObjectId | null;
   _id: Types.ObjectId;
   businessId: Types.ObjectId;
-  ruleId: Types.ObjectId;
+  ruleId: Types.ObjectId | null;
   ruleName: string;
   incidentId: Types.ObjectId | null;
-  responseId: Types.ObjectId;
+  responseId: Types.ObjectId | null;
   contactId: Types.ObjectId | null;
   /** Secret-ish coupon code, unique per business. */
   code: string;
@@ -136,6 +138,7 @@ export interface RewardDoc {
   decisionNote: string | null;
   deliveries: { method: string; at: Date; byUserId: Types.ObjectId }[];
   redemption: {
+    orderId?: string | null;
     at: Date;
     byUserId: Types.ObjectId;
     requestId: string;
@@ -148,11 +151,13 @@ export interface RewardDoc {
 
 const rewardSchema = new Schema<RewardDoc>(
   {
+    campaignRecipientId: { type: Schema.Types.ObjectId, default: null },
+    campaignId: { type: Schema.Types.ObjectId, default: null },
     businessId: { type: Schema.Types.ObjectId, ref: 'Business', required: true },
-    ruleId: { type: Schema.Types.ObjectId, ref: 'RewardRule', required: true },
+    ruleId: { type: Schema.Types.ObjectId, ref: 'RewardRule', default: null },
     ruleName: { type: String, required: true },
     incidentId: { type: Schema.Types.ObjectId, ref: 'Incident', default: null },
-    responseId: { type: Schema.Types.ObjectId, ref: 'Response', required: true },
+    responseId: { type: Schema.Types.ObjectId, ref: 'Response', default: null },
     contactId: { type: Schema.Types.ObjectId, ref: 'Contact', default: null },
     code: { type: String, required: true },
     status: { type: String, enum: REWARD_STATUSES, required: true },
@@ -187,6 +192,7 @@ const rewardSchema = new Schema<RewardDoc>(
           at: Date,
           byUserId: { type: Schema.Types.ObjectId, ref: 'User' },
           requestId: String,
+          orderId: { type: String, default: null },
           orderTotal: { type: Number, default: null },
           discountApplied: { type: Number, default: null },
         },
@@ -198,13 +204,37 @@ const rewardSchema = new Schema<RewardDoc>(
   { timestamps: true, collection: 'rewards' },
 );
 // One reward per response: this is what stops repeated submissions of one response from stacking.
-rewardSchema.index({ businessId: 1, responseId: 1 }, { unique: true });
+rewardSchema.index(
+  { businessId: 1, responseId: 1 },
+  {
+    name: 'business_response_unique',
+    unique: true,
+    partialFilterExpression: { responseId: { $type: 'objectId' } },
+  },
+);
+rewardSchema.index(
+  { businessId: 1, campaignRecipientId: 1 },
+  { unique: true, partialFilterExpression: { campaignRecipientId: { $type: 'objectId' } } },
+);
 rewardSchema.index({ businessId: 1, code: 1 }, { unique: true });
 rewardSchema.index({ businessId: 1, status: 1, createdAt: -1 });
 rewardSchema.index({ businessId: 1, identityHash: 1, createdAt: -1 });
 
 rewardSchema.index({ createdAt: -1, _id: -1 });
 export const Reward = model<RewardDoc>('Reward', rewardSchema);
+const orderSchema = new Schema(
+  {
+    businessId: { type: Schema.Types.ObjectId, required: true },
+    orderId: { type: String, required: true },
+    rewardId: { type: Schema.Types.ObjectId, required: true },
+    requestId: { type: String, required: true },
+    at: { type: Date, required: true },
+  },
+  { collection: 'reward_order_claims' },
+);
+orderSchema.index({ businessId: 1, orderId: 1 }, { unique: true });
+orderSchema.index({ businessId: 1, rewardId: 1 }, { unique: true });
+export const RewardOrderClaim = model('RewardOrderClaim', orderSchema);
 
 /** Atomic counters for caps and cooldown windows (unique key + conditional upsert). */
 const quotaSchema = new Schema<{ key: string; count: number }>(

@@ -1,3 +1,4 @@
+import { AppSelect } from '../../shared/app-select';
 import { Component, inject, signal, OnInit, DestroyRef } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -38,7 +39,7 @@ const emptyForm = (): RewardForm => ({
 });
 @Component({
   selector: 'app-instant-rewards-admin',
-  imports: [DatePipe, FormsModule, DialogFocus, Icon, InstantRewardDetails],
+  imports: [AppSelect, DatePipe, FormsModule, DialogFocus, Icon, InstantRewardDetails],
   templateUrl: './instant-rewards-admin.page.html',
 })
 export class InstantRewardsAdminPage implements OnInit {

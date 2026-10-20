@@ -55,12 +55,13 @@ describe('auth', () => {
 
   it('login() stores the user in memory only (CSRF header is verified end-to-end against the API)', () => {
     const { auth, http } = setup();
+    const storageBefore = Object.entries(localStorage);
     auth.login('ada@example.com', 'pw').subscribe();
     const req = http.expectOne('/api/v1/auth/login');
     expect(req.request.method).toBe('POST');
     req.flush(ok);
     expect(auth.isAuthenticated()).toBeTrue();
-    expect(localStorage.length).toBe(0);
+    expect(Object.entries(localStorage)).toEqual(storageBefore);
   });
 
   it('login() fetches a CSRF cookie first when missing', () => {

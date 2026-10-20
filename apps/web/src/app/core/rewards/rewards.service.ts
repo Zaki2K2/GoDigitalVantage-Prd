@@ -37,13 +37,14 @@ export interface ContactBrief {
 }
 
 export interface StaffReward {
+  campaignId?: string | null;
   id: string;
   code: string;
   status: RewardStatus;
   ruleName: string;
-  ruleId: string;
+  ruleId: string | null;
   incidentId: string | null;
-  responseId: string;
+  responseId: string | null;
   contact: ContactBrief | null;
   discount: Discount;
   terms: string;
@@ -266,6 +267,7 @@ export class RewardsApi {
     code: string,
     requestId: string,
     orderTotal?: number,
+    orderId?: string,
   ): Observable<{ duplicate: boolean; reward: StaffReward }> {
     return this.auth
       .withCsrf(() =>
@@ -275,6 +277,7 @@ export class RewardsApi {
             code,
             requestId,
             ...(orderTotal === undefined ? {} : { orderTotal }),
+            ...(orderId ? { orderId } : {}),
           },
         ),
       )

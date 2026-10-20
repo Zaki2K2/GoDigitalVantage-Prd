@@ -12,5 +12,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src", "tests", "vitest.config.mts"]
+  "include": ["src", "tests", "scripts", "vitest.config.mts"]
 }

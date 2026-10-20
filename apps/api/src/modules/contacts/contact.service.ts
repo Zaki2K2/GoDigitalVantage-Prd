@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { escapeRegex, OBJECT_ID, pageMeta, paginationQuery } from '../../shared/pagination';
 import { notFound } from '../../shared/errors';
 import { Response } from '../responses/response.model';
+import { MarketingConsent } from '../campaigns/campaign.marketing';
 import { ConsentEvent, Contact, type ConsentPurpose, type ContactDoc } from './contact.model';
 
 /** Wording shown to the customer and snapshotted on every grant. Bump the version on any change. */
@@ -126,6 +127,11 @@ const contactDto = (c: ContactDoc, responseCount: number) => ({
   fullName: c.fullName,
   email: c.emailLowercase,
   phone: c.phoneE164,
+  birthday: c.birthday ?? null,
+  anniversary: c.anniversary ?? null,
+  tags: c.tags ?? [],
+  segment: c.segment ?? null,
+  loyaltyLevel: c.loyaltyLevel ?? null,
   responseCount,
   firstResponseAt: c.firstResponseAt,
   lastResponseAt: c.lastResponseAt,
@@ -182,6 +188,13 @@ export async function getContact(businessId: string, contactId: string) {
   ]);
   return {
     contact: contactDto(c, total),
+    marketingEmail: await MarketingConsent.findOne({
+      businessId,
+      contactId: c._id,
+      email: c.emailLowercase,
+    })
+      .select('state at -_id')
+      .lean(),
     responses: responses.map((r) => ({
       id: String(r._id),
       submittedAt: r.submittedAt,

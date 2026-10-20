@@ -109,7 +109,7 @@
       </div>
       <div class="field">
         <label for="reward-status">Status</label
-        ><select id="reward-status" name="status" [(ngModel)]="filters.status">
+        ><select appSelect id="reward-status" name="status" [(ngModel)]="filters.status">
           <option value="">All statuses</option>
           @for (status of statuses; track status) {
             <option [value]="status">{{ status }}</option>
@@ -118,7 +118,7 @@
       </div>
       <div class="field">
         <label for="reward-type-filter">Reward type</label
-        ><select id="reward-type-filter" name="type" [(ngModel)]="filters.rewardType">
+        ><select appSelect id="reward-type-filter" name="type" [(ngModel)]="filters.rewardType">
           <option value="">All types</option>
           @for (type of types; track type) {
             <option [value]="type">{{ type.replaceAll('_', ' ') }}</option>
@@ -127,7 +127,7 @@
       </div>
       <div class="field">
         <label for="reward-enabled">Enabled</label
-        ><select id="reward-enabled" name="enabled" [(ngModel)]="filters.enabled">
+        ><select appSelect id="reward-enabled" name="enabled" [(ngModel)]="filters.enabled">
           <option value="">All</option>
           <option value="true">Enabled</option>
           <option value="false">Disabled / expired / revoked</option>
@@ -294,7 +294,7 @@
               </div>
               <div class="field">
                 <label for="reward-kind">Reward type</label
-                ><select id="reward-kind" name="kind" [(ngModel)]="form.rewardType">
+                ><select appSelect id="reward-kind" name="kind" [(ngModel)]="form.rewardType">
                   @for (type of types; track type) {
                     <option [value]="type">{{ type.replaceAll('_', ' ') }}</option>
                   }

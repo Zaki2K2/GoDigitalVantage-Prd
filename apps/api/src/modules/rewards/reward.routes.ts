@@ -121,6 +121,7 @@ export function createRewardRouter() {
         input.code,
         input.requestId,
         input.orderTotal,
+        input.orderId,
       );
       res.status(result.duplicate ? 200 : 201).json({ data: result });
     },
