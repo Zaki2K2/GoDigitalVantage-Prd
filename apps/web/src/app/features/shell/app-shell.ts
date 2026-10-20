@@ -12,6 +12,7 @@ import {
 import { filter, finalize } from 'rxjs';
 import { apiErrorMessage, AuthService } from '../../core/auth/auth.service';
 import { Business, BusinessApi } from '../../core/business/business.service';
+import { Avatar } from '../../shared/avatar';
 import { BrandLogo } from '../../shared/brand-logo';
 import { Icon, IconName } from '../../shared/icon';
 import { ThemeService } from '../../shared/theme.service';
@@ -52,7 +53,16 @@ const GROUPS: NavGroup[] = [
 /** App shell (TailAdmin layout): collapsible sidebar, mobile drawer, sticky header. */
 @Component({
   selector: 'app-shell',
-  imports: [ActionMenu, AppSelect, RouterOutlet, RouterLink, RouterLinkActive, Icon, BrandLogo],
+  imports: [
+    ActionMenu,
+    Avatar,
+    AppSelect,
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    Icon,
+    BrandLogo,
+  ],
   templateUrl: './app-shell.html',
 })
 export class AppShell {
@@ -138,14 +148,12 @@ export class AppShell {
   protected readonly signingOut = signal(false);
   protected readonly signOutError = signal('');
 
-  protected readonly initials = computed(() =>
-    (this.user()?.fullName ?? '?')
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]!.toUpperCase())
-      .join(''),
-  );
+  protected readonly logoUrl = computed(() => {
+    const b = this.business();
+    if (!b) return null;
+    const overrides = this.businesses.logoOverrides();
+    return b.id in overrides ? overrides[b.id] : (b.logoUrl ?? null);
+  });
 
   constructor() {
     if (!this.adminMode && !this.personalMode)

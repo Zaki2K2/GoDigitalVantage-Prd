@@ -19,6 +19,7 @@ import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs'
 import { apiErrorMessage, AuthService } from '../../core/auth/auth.service';
 import { Business, BusinessInput } from '../../core/business/business.service';
 import { BusinessForm } from '../business/business-form';
+import { Avatar } from '../../shared/avatar';
 import { DialogFocus } from '../../shared/dialog-focus';
 import { Icon } from '../../shared/icon';
 import { RecordDetails } from '../../shared/record-details';
@@ -60,6 +61,7 @@ interface PendingAction {
   selector: 'app-admin-page',
   imports: [
     ActionMenu,
+    Avatar,
     AppSelect,
     AdminDashboard,
     DatePipe,
@@ -246,6 +248,18 @@ export class AdminPage {
         } as Record<string, string>
       )[column] ?? this.label(column)
     );
+  }
+  /** Optional photo/logo of a user or business record; null when none was uploaded. */
+  protected imageSrc(row: AdminRecord | null): string | null {
+    if (!row) return null;
+    const resource = this.activeResource();
+    const stamp = resource === 'users' ? row['avatarUpdatedAt'] : row['logoUpdatedAt'];
+    if (!stamp || (resource !== 'users' && resource !== 'businesses')) return null;
+    const path = resource === 'users' ? `users/${row._id}/avatar` : `businesses/${row._id}/logo`;
+    return `/api/v1/admin/${path}?v=${new Date(String(stamp)).getTime()}`;
+  }
+  protected hasImageSlot(): boolean {
+    return ['users', 'businesses'].includes(this.activeResource());
   }
   protected owner(row: AdminRecord, field: string): string {
     const value = row['owner'];

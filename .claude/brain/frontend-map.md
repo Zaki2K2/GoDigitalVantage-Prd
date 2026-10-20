@@ -52,3 +52,7 @@ M-CAMP: `/campaigns` and `/admin/campaigns` share CampaignsPage, CampaignApi and
 ## Shared dropdown system (2026-10-20)
 
 All 28 feature selects and BusinessForm's two editable datalists use AppSelect (`shared/app-select.ts`) and one OnPush SelectControl renderer/CVA. Native form accessors, values, validation and original events are preserved. Admin/Campaign/account action menus use shared ActionMenu; DropdownPanel uses the native top layer with viewport clamping, upward placement and logical modal ancestry. Appearance lives in `src/dropdowns.css` using existing tokens. Public answer choices, Settings cards, chart/config disclosures and authorized paginated CampaignPicker are intentionally retained. Architecture, API, examples, audit and testing: [dropdowns](dropdowns.md).
+
+## Profile image and business logo (2026-10-20)
+
+Shared `Avatar` (initials tile always underneath; image fades in only after load, hidden on error), `ImageUpload` (pick/replace/remove, inline errors, owner-only) and `prepareImage` (type/5 MB check, canvas resize: avatar 256px centred square, logo 512px keeping aspect, WebP). Shown in: shell account menu (avatar) and header (logo next to business name), Settings > Your account (upload), Business profile (header + owner-only Business logo card), public feedback form header, Admin user/business detail header and list name cells. `AuthService.setAvatar` and `BusinessApi.setLogo/logoOverrides` refresh the shell without a reload. Deliberately not added: tables, cards, activity feed, admin member lists.

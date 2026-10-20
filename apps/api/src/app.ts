@@ -6,6 +6,7 @@ import {
   createInstantRewardRouter,
   createInstantRewardWebhook,
 } from './modules/instant-rewards/instant-reward.routes';
+import { createImageRouter, createPublicImageRouter } from './modules/images/image.routes';
 import { createAdminRouter } from './modules/admin/admin.routes';
 import express from 'express';
 import helmet from 'helmet';
@@ -44,12 +45,13 @@ export function createApp(rewards = new InstantRewardsService()) {
   app.use('/api/v1/health', healthRouter);
   app.use(createCampaignCronRouter());
   app.use(createMarketingPublicRouter());
-  app.use('/api/v1', createPublicRouter());
+  app.use('/api/v1', createPublicRouter(), createPublicImageRouter());
   app.use(
     '/api/v1',
     csrfProtection,
     createAuthRouter(),
     createInstantRewardRouter(rewards),
+    createImageRouter(),
     // Campaign routes own their guards; handle them before the broad /admin middleware.
     createCampaignRouter(),
     createAdminRouter(),

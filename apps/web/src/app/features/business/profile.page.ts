@@ -2,12 +2,14 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { apiErrorMessage } from '../../core/auth/auth.service';
 import { Business, BusinessApi, BusinessInput } from '../../core/business/business.service';
+import { Avatar } from '../../shared/avatar';
 import { Icon } from '../../shared/icon';
+import { ImageUpload } from '../../shared/image-upload';
 import { BusinessForm } from './business-form';
 
 @Component({
   selector: 'app-profile-page',
-  imports: [BusinessForm, RouterLink, Icon],
+  imports: [Avatar, BusinessForm, ImageUpload, RouterLink, Icon],
   templateUrl: './profile.page.html',
 })
 export class ProfilePage {
@@ -32,6 +34,11 @@ export class ProfilePage {
         this.loading.set(false);
       },
     });
+  }
+
+  protected logoChanged(b: Business, url: string | null): void {
+    this.api.setLogo(b.id, url);
+    this.business.set({ ...b, logoUrl: url });
   }
 
   protected rows(b: Business): [string, string][] {

@@ -2,15 +2,25 @@
   <header class="page-header">
     <div>
       <p class="eyebrow"><a routerLink="/admin/dashboard">Admin</a> / {{ label(section()) }}</p>
-      <h1>
-        {{
-          section() === 'dashboard'
-            ? 'Platform overview'
-            : record() && id()
-              ? recordTitle()
-              : label(section())
-        }}
-      </h1>
+      <div class="flex min-w-0 items-center gap-3">
+        @if (id() && record() && hasImageSlot()) {
+          <app-avatar
+            [src]="imageSrc(record())"
+            [name]="recordTitle()"
+            [size]="48"
+            [shape]="activeResource() === 'users' ? 'circle' : 'square'"
+          />
+        }
+        <h1>
+          {{
+            section() === 'dashboard'
+              ? 'Platform overview'
+              : record() && id()
+                ? recordTitle()
+                : label(section())
+          }}
+        </h1>
+      </div>
       @if (section() === 'dashboard') {
         <p class="sub">A clear view of your businesses, customers, and platform activity.</p>
       }
@@ -406,19 +416,43 @@
                         [class.text-center]="column.endsWith('Count')"
                       >
                         @if (column === 'name') {
-                          <button
-                            class="block max-w-52 text-left font-semibold text-gray-900 hover:text-brand-600 dark:text-white/90 dark:hover:text-brand-400"
-                            (click)="open(row)"
-                          >
-                            {{ cell(row, column) }}
-                          </button>
-                          @if (row['slug']) {
+                          <div class="flex items-center gap-3">
+                            @if (hasImageSlot()) {
+                              <app-avatar
+                                [src]="imageSrc(row)"
+                                [name]="cell(row, column)"
+                                [size]="32"
+                                shape="square"
+                              />
+                            }
+                            <div class="min-w-0">
+                              <button
+                                class="block max-w-52 text-left font-semibold text-gray-900 hover:text-brand-600 dark:text-white/90 dark:hover:text-brand-400"
+                                (click)="open(row)"
+                              >
+                                {{ cell(row, column) }}
+                              </button>
+                              @if (row['slug']) {
+                                <span
+                                  class="mt-1 block max-w-52 truncate text-theme-xs text-gray-500"
+                                  [title]="'' + row['slug']"
+                                  >{{ row['slug'] }}</span
+                                >
+                              }
+                            </div>
+                          </div>
+                        } @else if (column === 'fullName' && activeResource() === 'users') {
+                          <div class="flex items-center gap-3">
+                            <app-avatar
+                              [src]="imageSrc(row)"
+                              [name]="cell(row, column)"
+                              [size]="32"
+                            />
                             <span
-                              class="mt-1 block max-w-52 truncate text-theme-xs text-gray-500"
-                              [title]="'' + row['slug']"
-                              >{{ row['slug'] }}</span
+                              class="block max-w-52 break-words text-gray-600 dark:text-gray-300"
+                              >{{ cell(row, column) }}</span
                             >
-                          }
+                          </div>
                         } @else if (column === 'owner') {
                           <span
                             class="block max-w-56 truncate font-medium text-gray-800 dark:text-gray-200"

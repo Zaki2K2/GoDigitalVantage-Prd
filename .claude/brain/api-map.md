@@ -74,3 +74,7 @@ POST /api/v1/webhooks/resend is the shared raw signed webhook. /api/v1/webhooks/
 ## Campaign Management Engine
 
 M-CAMP: business `/businesses/:businessId/campaigns`, platform `/admin/campaigns`, contact campaign-profile update, bearer scheduler `/internal/campaigns/run`. Full payload/permission map: [campaigns](campaigns.md).
+
+## Profile image and business logo (2026-10-20)
+
+Images are raw bodies (`image/png|jpeg|webp`, <=512 KB, magic bytes sniffed, SVG rejected). Auth user DTO gains `avatarUrl`; business DTO gains `logoUrl`; public form `business.logoUrl`; all null when unset. Routes (api/src/modules/images/image.routes.ts): `GET|PUT|DELETE /users/me/avatar` (self only); `GET /businesses/:id/logo` (member), `PUT|DELETE` (owner only, 403 otherwise); `GET /public/:slug/logo` (anonymous, unavailable/suspended businesses 404, public cache); `GET /admin/users/:id/avatar` and `/admin/businesses/:id/logo` (Super Admin read-only). Admin list/detail projections add `avatarUpdatedAt`/`logoUpdatedAt`. Errors use the standard envelope: 415 UNSUPPORTED_IMAGE, 413 PAYLOAD_TOO_LARGE/IMAGE_TOO_LARGE.

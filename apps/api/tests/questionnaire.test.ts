@@ -466,6 +466,7 @@ describe('public form (no login)', () => {
       slug: b.slug,
       category: 'Cafe',
       googleReviewUrl: null,
+      logoUrl: null,
     });
     expect(res.body.data.questionnaire.version).toBe(1);
     expect(res.body.data.questionnaire.questions[0].label).toBe('Published question');

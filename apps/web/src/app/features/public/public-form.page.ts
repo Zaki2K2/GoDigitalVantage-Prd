@@ -1,3 +1,4 @@
+import { Avatar } from '../../shared/avatar';
 import { RewardCard } from '../../shared/reward-card';
 import { requestId } from '../../shared/request-id';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -43,7 +44,7 @@ export function phoneLooksValid(raw: string): boolean {
  */
 @Component({
   selector: 'app-public-form-page',
-  imports: [RewardCard],
+  imports: [Avatar, RewardCard],
   templateUrl: './public-form.page.html',
 })
 export class PublicFormPage implements OnChanges {

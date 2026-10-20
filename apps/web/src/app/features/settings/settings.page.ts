@@ -2,11 +2,12 @@ import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { Icon } from '../../shared/icon';
+import { ImageUpload } from '../../shared/image-upload';
 import { ThemeService } from '../../shared/theme.service';
 
 @Component({
   selector: 'app-settings-page',
-  imports: [RouterLink, Icon],
+  imports: [RouterLink, Icon, ImageUpload],
   template: `
     <main class="page">
       <header class="page-header">
@@ -53,6 +54,15 @@ import { ThemeService } from '../../shared/theme.service';
           </section>
           <section id="account" class="card">
             <h2>Your account</h2>
+            <div class="mb-5">
+              <app-image-upload
+                kind="avatar"
+                endpoint="/api/v1/users/me/avatar"
+                [url]="auth.user()?.avatarUrl"
+                [name]="auth.user()?.fullName ?? ''"
+                (changed)="auth.setAvatar($event)"
+              />
+            </div>
             <dl class="detail">
               <dt>Name</dt>
               <dd>{{ auth.user()?.fullName }}</dd>

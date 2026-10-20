@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { Types } from 'mongoose';
 import { AppError, forbidden, notFound } from '../../shared/errors';
+import { imageUrl } from '../images/image-url';
 import { Business, ONBOARDING_STEPS, type BusinessDoc } from './business.model';
 import { BusinessMembership, type MembershipRole } from './membership.model';
 import { ensureQuestionnaire, hasPublished } from '../questionnaires/questionnaire.service';
@@ -19,6 +20,7 @@ export function toBusinessDto(b: BusinessDoc, role: MembershipRole) {
     phone: b.phone,
     address: b.address,
     logoRef: b.logoRef,
+    logoUrl: imageUrl(`/api/v1/businesses/${b._id.toString()}/logo`, b.logoUpdatedAt),
     timezone: b.timezone,
     googleReviewUrl: b.googleReviewUrl,
     slug: b.slug,

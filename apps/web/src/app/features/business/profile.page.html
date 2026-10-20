@@ -35,12 +35,7 @@
     <section class="card relative overflow-hidden">
       <div class="glow top-[-5rem] right-[-3rem] size-60 bg-brand-500/15"></div>
       <div class="mb-6 flex items-center gap-4">
-        <span
-          class="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-blue-light-500 text-xl font-semibold text-white"
-          aria-hidden="true"
-        >
-          {{ b.name.charAt(0).toUpperCase() }}
-        </span>
+        <app-avatar [src]="b.logoUrl" [name]="b.name" [size]="56" shape="square" />
         <div class="min-w-0">
           <h2 class="!mb-0.5 truncate">{{ b.name }}</h2>
           <p class="m-0 flex flex-wrap items-center gap-2">
@@ -90,6 +85,21 @@
           <p class="muted mt-4 mb-0">Only the business owner can edit these details.</p>
         }
       }
+    </section>
+
+    <section class="card">
+      <h2>Business logo</h2>
+      <p class="muted mt-0 mb-4">
+        Optional. Shown next to your business name and on your customer feedback page.
+      </p>
+      <app-image-upload
+        kind="logo"
+        [endpoint]="'/api/v1/businesses/' + b.id + '/logo'"
+        [url]="b.logoUrl"
+        [name]="b.name"
+        [canEdit]="b.role === 'owner'"
+        (changed)="logoChanged(b, $event)"
+      />
     </section>
 
     <section class="card">

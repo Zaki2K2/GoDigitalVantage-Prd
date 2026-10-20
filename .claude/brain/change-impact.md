@@ -46,3 +46,7 @@ Campaign changes must preserve tenant audience/cursor intersection, unique recip
 Shared dropdowns: changing AppSelect/SelectControl/ActionMenu/DropdownPanel affects all 28 selects, editable BusinessForm suggestions, Admin/Campaign/account menus and modal focus. Check shared dropdown regressions plus existing questionnaire type changes, reward numeric ngValue, business switching, consent, filters/sorting and Admin/Campaign confirmations. See [dropdowns](dropdowns.md).
 
 Mongo connection cache/pool or Vercel entry/config changes -> serverless, db-cache, performance, auth, tenant/moderation and campaign tests. Preserve live permission reads and explicit production migrations. Timing logs must remain free of request/DB values. See [performance](performance.md) for measured baseline and account-access limitations.
+
+## Profile image and business logo (2026-10-20)
+
+Image DTO fields (`avatarUrl`/`logoUrl`) -> `toUserDto`, `toBusinessDto`, `getPublicForm`, web `AuthUser`/`Business`/`PublicForm` types, exact-payload tests in questionnaire/submission tests. Size or type limits (`MAX_IMAGE_BYTES`, `IMAGE_CONTENT_TYPES`) -> `image-resize.ts` (client limits) and the `express.raw` parser in `image.routes.ts`. Logo permission changes -> `requireBusinessAccess`, owner check in image routes, public slug route. Admin projections -> `admin.service.ts` fields and `record-details.ts` hidden keys. See `apps/api/tests/images.test.ts`.

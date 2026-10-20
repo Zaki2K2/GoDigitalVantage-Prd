@@ -60,7 +60,13 @@ export interface QuestionnaireView {
 }
 
 export interface PublicForm {
-  business: { name: string; slug: string; category: string; googleReviewUrl: string | null };
+  business: {
+    name: string;
+    slug: string;
+    category: string;
+    googleReviewUrl: string | null;
+    logoUrl?: string | null;
+  };
   questionnaire: QuestionnaireContent & { version: number; publishedAt: string };
   consent: { wordingVersion: string; reviewRequestSms: string; marketingSms: string };
 }

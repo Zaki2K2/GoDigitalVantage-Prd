@@ -165,6 +165,7 @@ describe('public form payload', () => {
       slug: w.slug,
       category: 'Cafe',
       googleReviewUrl: 'https://g.page/r/harbor/review',
+      logoUrl: null,
     });
     expect(res.body.data.consent.wordingVersion).toBeTruthy();
     expect(res.body.data.consent.marketingSms).toContain('Optional');

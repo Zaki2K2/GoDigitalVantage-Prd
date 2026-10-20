@@ -124,3 +124,11 @@ The admin message "Instant Rewards email configuration is incomplete" / "Email n
 3. `PUBLIC_APP_BASE_URL` must be HTTPS in production.
 
 Other codes: `EMAIL_DISABLED` (`EMAIL_ENABLED` not `true`), `EMAIL_TEST_NOT_CONFIGURED` (`RESEND_TEST_EMAIL` missing), `EMAIL_TEST_RECIPIENT_BLOCKED` (recipient is not the test email), `EMAIL_SENDER_INVALID` (in test mode the sender must be exactly `onboarding@resend.dev`). After fixing the setting and redeploying, use "Retry delivery" on the reward. Do not recreate the reward.
+
+## Read-only configuration recheck ? 2026-10-20
+
+The API key in local `apps/api/.env` successfully returned HTTP 200 from Resend domain listing. The account lists `go-digital-vantage-prd.app` (`not_started`) and `go-digital-vantage-prd.vercel` (`pending`); neither is verified. Required application sender domain `mail.godigitalvantage.com` is absent, so normal production sending fails the existing domain gate. Sending capability enabled alone does not mean DNS verification passed.
+
+Local `.env`: EMAIL_ENABLED=false, test mode defaults false, purpose-specific senders match the approved domain, API key present, webhook signing secret absent, marketing unsubscribe secret absent, reward signing secret present, app origin is not HTTPS (local development). Local `.env.production` has an HTTPS app origin but no Resend credentials/signing secrets and sending defaults disabled. These files do not establish deployed Vercel environment values. No keys or recipient addresses were printed.
+
+Required preparation: add the actual owned sending domain `mail.godigitalvantage.com` in Resend, publish its exact account-provided DNS records at the authoritative DNS provider, then verify until status is verified and sending is enabled. Configure the existing signed webhook and API-only secrets described above; campaigns also require MARKETING_UNSUBSCRIBE_SECRET. Confirm deployed settings and revision before enabling sending. Placeholder example.com and example IDs are documentation examples. No domain creation/update/verification/deletion, DNS change, real email, deployment or secret modification was performed.

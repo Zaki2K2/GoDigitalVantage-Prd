@@ -25,7 +25,9 @@ export class RecordDetails {
   readonly value = input<unknown>();
   protected entries(value: unknown): [string, unknown][] {
     return value && typeof value === 'object'
-      ? Object.entries(value).filter(([key]) => key !== '__v')
+      ? Object.entries(value).filter(
+          ([key]) => !['__v', 'avatarUpdatedAt', 'logoUpdatedAt'].includes(key),
+        )
       : [];
   }
   protected nested(value: unknown): boolean {

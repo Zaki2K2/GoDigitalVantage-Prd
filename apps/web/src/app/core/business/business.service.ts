@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Observable, defer, finalize, map, shareReplay, tap } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 
@@ -20,6 +20,8 @@ export interface Business {
   phone: string | null;
   address: string | null;
   logoRef: string | null;
+  /** Versioned URL of the optional logo; null/absent when none is set. */
+  logoUrl?: string | null;
   timezone: string;
   googleReviewUrl: string | null;
   slug: string;
@@ -56,6 +58,8 @@ export class BusinessApi {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private listEntry: ListEntry | null = null;
+  /** Logo changes made this session, so the shell updates without refetching the list. */
+  readonly logoOverrides = signal<Record<string, string | null>>({});
 
   select(id: string): void {
     try {
@@ -63,6 +67,11 @@ export class BusinessApi {
     } catch {
       /* Storage is optional. */
     }
+  }
+
+  setLogo(businessId: string, logoUrl: string | null): void {
+    this.logoOverrides.update((all) => ({ ...all, [businessId]: logoUrl }));
+    this.invalidate();
   }
 
   /** Drops the shared list so the next `list()` reads fresh data from the server. */

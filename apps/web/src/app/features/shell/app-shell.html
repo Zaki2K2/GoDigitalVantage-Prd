@@ -114,6 +114,9 @@
         <span class="text-theme-sm font-semibold">Platform administration</span>
       }
       @if (business(); as b) {
+        @if (logoUrl()) {
+          <app-avatar [src]="logoUrl()" [name]="b.name" [size]="36" shape="square" />
+        }
         <div class="min-w-0">
           @if (businessList().length > 1) {
             <select
@@ -158,12 +161,7 @@
         triggerClass="flex items-center gap-2 rounded-lg p-1 pr-2 transition hover:bg-gray-100 dark:hover:bg-white/5"
       >
         <span menuTrigger class="flex items-center gap-2">
-          <span
-            class="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-blue-light-500 text-theme-sm font-semibold text-white"
-            aria-hidden="true"
-          >
-            {{ initials() }}
-          </span>
+          <app-avatar [src]="user()?.avatarUrl" [name]="user()?.fullName ?? ''" [size]="36" />
           <span
             class="hidden max-w-32 truncate text-theme-sm font-medium text-gray-700 sm:block dark:text-gray-300"
           >

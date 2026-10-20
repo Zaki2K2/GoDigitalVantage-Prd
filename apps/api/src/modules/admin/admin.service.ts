@@ -10,13 +10,14 @@ export const resources = {
   businesses: {
     collection: 'businesses',
     fields:
-      'name category email phone address timezone googleReviewUrl slug status adminState ownerUserId onboarding createdAt updatedAt',
+      'name category email phone address timezone googleReviewUrl slug status adminState ownerUserId onboarding logoUpdatedAt createdAt updatedAt',
     search: ['name', 'email'],
     date: 'createdAt',
   },
   users: {
     collection: 'users',
-    fields: 'fullName emailLowercase status platformRole permissions createdAt updatedAt',
+    fields:
+      'fullName emailLowercase status platformRole permissions avatarUpdatedAt createdAt updatedAt',
     search: ['fullName', 'emailLowercase'],
     date: 'createdAt',
   },

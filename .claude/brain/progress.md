@@ -131,3 +131,14 @@ Architecture, API, examples, migration boundaries, browser fallback and bounded 
 ## Performance follow-up (2026-10-20)
 
 Reviewed the seven performance changes; added request timing diagnostics (auth/db/total, opt-in), simplified immutable-cache header patterns, health-503 analysis, region/Fluid verification and benchmark checklist in docs/performance-vercel.md. API 268 tests, web 187, lint, typecheck and both builds pass. Not committed, pushed or deployed.
+
+## Profile image and business logo (2026-10-20)
+
+Optional user avatar and business logo added (see database, api-map, frontend-map, change-impact). Never required by registration, onboarding or any workflow; initials fallback everywhere. Stored in MongoDB `profile_images` (no disk/object store on Vercel); client resizes before upload; server validates magic bytes and 512 KB.
+
+Verification: API 279/279 (12 new in images.test.ts; 2 existing public-payload assertions gained `logoUrl: null`); ChromeHeadless 200/200 (13 new: Avatar fallback/load/error, ImageUpload states and client rejection, canvas resize); API and Angular app/spec typecheck, eslint and both production builds pass. Not verified in a real browser: an actual file-picker upload through the UI. No commit, push, deploy or data migration.
+
+Follow-ups: avatars in activity history and admin member lists, cropping UI, orphan cleanup if an owner is deleted (images are tiny and keyed by owner id).
+
+### Resend configuration recheck (2026-10-20)
+Read-only provider listing succeeds with the existing local key. Required mail.godigitalvantage.com is absent; listed domains are not_started/pending. Local email disabled, webhook secret absent; deployed Vercel settings remain inaccessible. No provider/DNS/config changes or email sent. Evidence and preparation: docs/email-resend.md.

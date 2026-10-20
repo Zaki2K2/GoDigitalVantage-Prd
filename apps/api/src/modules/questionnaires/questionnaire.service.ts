@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Types } from 'mongoose';
 import { AppError, notFound } from '../../shared/errors';
 import { Business } from '../businesses/business.model';
+import { imageUrl } from '../images/image-url';
 import {
   Questionnaire,
   QuestionnaireVersion,
@@ -255,6 +256,7 @@ export async function getPublicForm(slug: string) {
       slug: business.slug,
       category: business.category,
       googleReviewUrl: url && /^https:\/\//.test(url) ? url : null,
+      logoUrl: imageUrl(`/api/v1/public/${business.slug}/logo`, business.logoUpdatedAt),
     },
     questionnaire: versionDto(version),
   };

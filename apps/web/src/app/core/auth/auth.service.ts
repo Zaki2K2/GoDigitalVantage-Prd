@@ -10,6 +10,8 @@ export interface AuthUser {
   status: string;
   platformRole?: 'USER' | 'SUPER_ADMIN';
   permissions?: string[];
+  /** Versioned URL of the optional profile photo; null when none is set. */
+  avatarUrl?: string | null;
 }
 
 interface UserResponse {
@@ -100,6 +102,11 @@ export class AuthService {
       shareReplay({ bufferSize: 1, refCount: false }),
     );
     return this.refresh$;
+  }
+
+  /** Reflects a changed (or removed) profile photo everywhere the signed-in user is shown. */
+  setAvatar(avatarUrl: string | null): void {
+    this._user.update((user) => (user ? { ...user, avatarUrl } : user));
   }
 
   clear(): void {

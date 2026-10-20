@@ -1,4 +1,5 @@
 import { Schema, model, type InferSchemaType, type Types } from 'mongoose';
+import { imageUrl } from '../images/image-url';
 
 export const USER_STATUSES = ['active', 'disabled'] as const;
 
@@ -10,6 +11,7 @@ const userSchema = new Schema(
     platformRole: { type: String, enum: ['USER', 'SUPER_ADMIN'], default: 'USER' },
     sessionVersion: { type: Number, default: 0, min: 0 },
     sessionsRevokedAt: { type: Date, default: null },
+    avatarUpdatedAt: { type: Date, default: null },
     passwordHash: { type: String, required: true },
     status: { type: String, enum: USER_STATUSES, default: 'active', required: true },
   },
@@ -28,5 +30,6 @@ export function toUserDto(u: UserDoc) {
     status: u.status,
     permissions: u.permissions ?? [],
     platformRole: u.platformRole ?? 'USER',
+    avatarUrl: imageUrl('/api/v1/users/me/avatar', u.avatarUpdatedAt),
   };
 }

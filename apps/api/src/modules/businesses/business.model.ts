@@ -15,6 +15,7 @@ const businessSchema = new Schema(
     phone: { type: String, default: null, trim: true },
     address: { type: String, default: null, trim: true },
     logoRef: { type: String, default: null },
+    logoUpdatedAt: { type: Date, default: null },
     timezone: { type: String, required: true },
     googleReviewUrl: { type: String, default: null },
     slug: { type: String, required: true, unique: true },
