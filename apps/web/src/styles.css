@@ -455,6 +455,10 @@ app-auth-layout main {
   .card.glass {
     @apply border-white/40 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/60;
   }
+  /* Dialog surfaces must hide the page underneath, including in dark mode. */
+  .card[role='dialog'] {
+    @apply bg-white dark:bg-gray-900;
+  }
 
   /* Forms */
   .field {
