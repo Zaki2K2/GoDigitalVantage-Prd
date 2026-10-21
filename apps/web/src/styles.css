@@ -27,6 +27,11 @@
   --line: #2a3b52;
   --accent: #6ee7b7;
 }
+/* Keep modal surfaces opaque above layered card and utility backgrounds. */
+[role='dialog'][aria-modal='true'] {
+  background: var(--surface);
+  color: var(--ink);
+}
 .settings-grid {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
@@ -454,10 +459,6 @@ app-auth-layout main {
   }
   .card.glass {
     @apply border-white/40 bg-white/70 backdrop-blur-xl dark:border-white/10 dark:bg-gray-900/60;
-  }
-  /* Dialog surfaces must hide the page underneath, including in dark mode. */
-  .card[role='dialog'] {
-    @apply bg-white dark:bg-gray-900;
   }
 
   /* Forms */
