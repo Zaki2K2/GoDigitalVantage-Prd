@@ -3,7 +3,7 @@ import mongoose, { Types } from 'mongoose';
 import { AdminAudit } from './admin.model';
 import type { ListQuery } from './admin.schemas';
 import { escapeRegex, OBJECT_ID, pageMeta } from '../../shared/pagination';
-import { notFound } from '../../shared/errors';
+import { forbidden, notFound } from '../../shared/errors';
 
 // Inclusion projections are deliberate: new model fields are private until explicitly reviewed here.
 export const resources = {
@@ -58,10 +58,44 @@ export const resources = {
   },
 } as const;
 export type Resource = keyof typeof resources;
+/** Platform-operations data a Super Admin may read by default. */
+export const PLATFORM_RESOURCES = ['businesses', 'users', 'forms', 'activity'] as const;
+/** Tenant-owned customer data: readable only through an owner-approved, scoped support grant. */
+export const RESTRICTED_RESOURCES = ['responses', 'contacts', 'promotions'] as const;
+export type PlatformResource = (typeof PLATFORM_RESOURCES)[number];
+export type RestrictedResource = (typeof RESTRICTED_RESOURCES)[number];
+export const isRestricted = (resource: Resource): resource is RestrictedResource =>
+  (RESTRICTED_RESOURCES as readonly string[]).includes(resource);
+/** Set only by the support-grant layer after it authorised the exact business. */
+export type GrantContext = { businessId: string };
+
+const SENSITIVE_KEY = /e-?mail|phone|code|text|note|answer|contact|address|token|password|hash/i;
+/** Audit snapshots are shown to administrators; scrub anything that could be customer data. */
+export function redact(value: unknown, depth = 0): unknown {
+  if (Array.isArray(value)) return value.map((v) => redact(v, depth + 1));
+  if (
+    value &&
+    typeof value === 'object' &&
+    !(value instanceof Date) &&
+    !(value instanceof Types.ObjectId)
+  ) {
+    if (depth > 4) return '[redacted]';
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+        k,
+        SENSITIVE_KEY.test(k) ? '[redacted]' : redact(v, depth + 1),
+      ]),
+    );
+  }
+  return value;
+}
 export function projection(resource: Resource) {
   return Object.fromEntries(resources[resource].fields.split(' ').map((field) => [field, 1]));
 }
-export async function list(resource: Resource, q: ListQuery) {
+export async function list(resource: Resource, query: ListQuery, grant?: GrantContext) {
+  if (isRestricted(resource) && !grant)
+    throw forbidden('Tenant customer data requires an approved support grant');
+  const q = grant ? { ...query, businessId: grant.businessId } : query;
   const config = resources[resource];
   const match: Record<string, unknown> = {};
   if (q.businessId)
@@ -223,6 +257,9 @@ export async function list(resource: Resource, q: ListQuery) {
     counts[group]?.find((entry) => String(entry._id) === String(item['_id']))?.['count'] ?? 0;
   const data = items.map((item: Record<string, unknown>) => ({
     ...item,
+    ...(resource === 'activity'
+      ? { before: redact(item['before']), after: redact(item['after']) }
+      : {}),
     ...(resource === 'users'
       ? { platformRole: item['platformRole'] ?? 'USER' }
       : resource === 'businesses'
@@ -250,11 +287,18 @@ export async function list(resource: Resource, q: ListQuery) {
   }));
   return { data, pagination: pageMeta(q.page, q.pageSize, result?.['count']?.[0]?.total ?? 0) };
 }
-export async function detail(resource: Resource, id: string) {
+export async function detail(resource: Resource, id: string, grant?: GrantContext) {
+  if (isRestricted(resource) && !grant)
+    throw forbidden('Tenant customer data requires an approved support grant');
   const item = await mongoose.connection
     .collection(resources[resource].collection)
     .findOne({ _id: new Types.ObjectId(id) }, { projection: projection(resource) });
   if (!item) throw notFound('Record not found');
+  if (grant && String(item['businessId']) !== grant.businessId) throw notFound('Record not found');
+  if (resource === 'activity') {
+    item['before'] = redact(item['before']);
+    item['after'] = redact(item['after']);
+  }
   if (resource === 'businesses') {
     const businessId = item._id;
     const names = ['business_memberships', 'questionnaires', 'responses', 'contacts', 'rewards'];

@@ -123,27 +123,12 @@
       }
       @if (section() === 'forms') {
         <div class="card mb-4 flex flex-wrap gap-2">
-          <button class="btn secondary sm" (click)="formAction('publish')">Publish draft</button
-          ><button
+          <button
             class="btn secondary sm"
             (click)="formAction(record()!['adminArchived'] ? 'restore' : 'archive')"
           >
             {{ record()!['adminArchived'] ? 'Restore form' : 'Archive form' }}
           </button>
-        </div>
-      }
-      @if (section() === 'promotions') {
-        <div class="card mb-4 flex flex-wrap gap-2">
-          @if (record()!['status'] === 'pending_approval') {
-            <button class="btn secondary sm" (click)="promotionAction('approve')">Approve</button>
-            <button class="btn secondary sm" (click)="promotionAction('reject')">Reject</button>
-          }
-          @if (record()!['status'] === 'issued') {
-            <button class="btn secondary sm" (click)="promotionAction('cancel')">
-              Cancel promotion
-            </button>
-          }
-          <button class="btn secondary sm" (click)="copy('' + record()!['code'])">Copy code</button>
         </div>
       }
       <div class="card"><app-record-details [value]="record()" /></div>
@@ -192,9 +177,45 @@
   @if (!loading() && section() === 'system') {
     <div class="card"><app-record-details [value]="record()" /></div>
   }
+  @if (!loading() && restricted()) {
+    <div class="card py-12 text-center" role="note">
+      <app-icon name="shield" [size]="28" />
+      <h2>Customer data is private to each business</h2>
+      <p class="sub">
+        Platform administration only sees aggregate figures for {{ label(section()) }}. Individual
+        customers, answers, reward codes and message content are not available here. If a business
+        owner asks for help, request time-limited access with a support ticket.
+      </p>
+      <a class="btn secondary sm" routerLink="/admin/support">Open support access</a>
+    </div>
+  }
+  @if (section() === 'support') {
+    <app-support-access />
+  }
+  @if (id() && record() && tab() === 'customer-data') {
+    <div class="card" role="note">
+      <h2>Customer data (private to this business)</h2>
+      <p class="sub">
+        These records belong to the business and are hidden from platform administration. Only the
+        totals below are shown. Detailed access needs the owner approval of a scoped, time-limited
+        support request.
+      </p>
+      <dl class="detail">
+        <dt>Responses</dt>
+        <dd>{{ $any(record()!['counts'])?.['responses'] ?? 0 }}</dd>
+        <dt>Contacts</dt>
+        <dd>{{ $any(record()!['counts'])?.['contacts'] ?? 0 }}</dd>
+        <dt>Rewards</dt>
+        <dd>{{ $any(record()!['counts'])?.['rewards'] ?? 0 }}</dd>
+      </dl>
+      <a class="btn secondary sm" routerLink="/admin/support">Request support access</a>
+    </div>
+  }
   @if (
-    (!id() && !['dashboard', 'system'].includes(section())) ||
-    (id() && !['overview', 'settings', 'qr', 'preview'].includes(tab()))
+    !restricted() &&
+    section() !== 'support' &&
+    ((!id() && !['dashboard', 'system'].includes(section())) ||
+      (id() && !['overview', 'settings', 'qr', 'preview', 'customer-data'].includes(tab())))
   ) {
     <form class="toolbar" (submit)="$event.preventDefault(); apply()">
       <div class="field grow">
@@ -237,26 +258,7 @@
           </select>
         </div>
       }
-      @if (activeResource() === 'responses') {
-        <div class="field">
-          <label for="admin-rating">Rating</label
-          ><select
-            appSelect
-            id="admin-rating"
-            name="rating"
-            [(ngModel)]="rating"
-            (change)="apply()"
-          >
-            <option value="">All ratings</option>
-            @for (item of [1, 2, 3, 4, 5]; track item) {
-              <option [value]="item">{{ item }}</option>
-            }
-          </select>
-        </div>
-      }
-      @if (
-        !id() && ['forms', 'responses', 'contacts', 'promotions', 'activity'].includes(section())
-      ) {
+      @if (!id() && ['forms', 'activity'].includes(section())) {
         <div class="field">
           <label for="admin-business">Business ID</label
           ><input
@@ -265,18 +267,6 @@
             [(ngModel)]="businessId"
             (change)="apply()"
             placeholder="All businesses"
-          />
-        </div>
-      }
-      @if (activeResource() === 'responses') {
-        <div class="field">
-          <label for="admin-form">Questionnaire ID</label
-          ><input
-            id="admin-form"
-            name="questionnaireId"
-            [(ngModel)]="questionnaireId"
-            (change)="apply()"
-            placeholder="All forms"
           />
         </div>
       }

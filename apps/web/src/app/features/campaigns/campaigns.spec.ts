@@ -475,14 +475,13 @@ describe('Campaign audience picker', () => {
     expect(page.request.params.get('page')).toBe('2');
     page.flush({ data: [], pagination: { page: 2, total: 11, totalPages: 2 } });
   });
-  it('uses explicit business scoping with the existing Super Admin contact API', () => {
+  it('never requests customers of a business on behalf of a platform administrator', () => {
     const f = TestBed.createComponent(CampaignPicker);
     f.componentRef.setInput('resource', 'contacts');
     f.componentRef.setInput('businessId', 'tenant-b');
     f.componentRef.setInput('admin', true);
     f.detectChanges();
-    const req = http.expectOne((r) => r.url === '/api/v1/admin/contacts');
-    expect(req.request.params.get('businessId')).toBe('tenant-b');
-    req.flush({ data: [], pagination: { page: 1, total: 0, totalPages: 0 } });
+    http.expectNone((r) => r.url.includes('contacts'));
+    expect(f.nativeElement.textContent).toContain('not visible to platform administrators');
   });
 });

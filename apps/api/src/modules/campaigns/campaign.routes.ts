@@ -8,6 +8,7 @@ import { assertBusinessPermission } from '../../middleware/business-permissions'
 import { findMembership } from '../businesses/business.service';
 import { Business } from '../businesses/business.model';
 import { requireSuperAdmin } from '../admin/admin.auth';
+import { authorizeBusinessWrite } from '../admin/support-access';
 import { Contact } from '../contacts/contact.model';
 import { EmailDeliveryEvent } from '../email/email.model';
 import { AppError, forbidden, notFound } from '../../shared/errors';
@@ -116,7 +117,9 @@ export function createCampaignRouter() {
     const [recipients, total, locks, recentChecks, counts, scheduler, indexesReady] =
       await Promise.all([
         CampaignRecipient.find(filter)
-          .select('-text -email -subject -unsubscribeUrl')
+          .select(
+            'status attempts errorCode window startedAt nextAttemptAt campaignId businessId createdAt updatedAt',
+          )
           .sort({ updatedAt: -1, _id: -1 })
           .skip((q.page - 1) * q.pageSize)
           .limit(q.pageSize)
@@ -188,6 +191,10 @@ export function createCampaignRouter() {
           throw forbidden('Platform campaigns are managed by Super Admin');
       }
     };
+    // Platform operators may only change a business's campaigns under an owner-approved write grant.
+    const gate = async (req: import('express').Request, businessId: unknown) => {
+      if (platform) await authorizeBusinessWrite(req, String(businessId), 'campaigns');
+    };
     router.get(`${root}/templates`, ...access, async (_req, res) => {
       res.json({
         data: CAMPAIGN_TEMPLATES,
@@ -244,6 +251,14 @@ export function createCampaignRouter() {
         const ids = targets ? targets.map((b) => String(b._id)) : input.businessIds!;
         const created = [];
         for (const businessId of [...new Set(ids)]) {
+          // Bulk assignment skips businesses without a grant; explicit selections must hold one.
+          if (input.all) {
+            const granted = await authorizeBusinessWrite(req, businessId, 'campaigns').then(
+              () => true,
+              () => false,
+            );
+            if (!granted) continue;
+          } else await gate(req, businessId);
           if (
             !(await Business.exists({
               _id: businessId,
@@ -338,6 +353,7 @@ export function createCampaignRouter() {
         .parse(req.body);
       const businessId = scope(req) ?? raw.businessId;
       if (!businessId) throw new AppError(422, 'BUSINESS_REQUIRED', 'Select a target business');
+      await gate(req, businessId);
       if (
         !(await Business.exists({
           _id: businessId,
@@ -351,7 +367,14 @@ export function createCampaignRouter() {
         .json({ data: await createCampaign(raw.input, businessId, req.auth!.userId, platform) });
     });
     router.get(`${root}/:campaignId`, ...access, async (req, res) => {
-      const c = await getCampaign(String(req.params['campaignId']), scope(req));
+      const found = await getCampaign(String(req.params['campaignId']), scope(req));
+      // Platform view: no tenant contact ids, no per-recipient identifiers or message bodies.
+      const c = platform
+        ? {
+            ...found,
+            audience: { ...found.audience, contactIds: [] as typeof found.audience.contactIds },
+          }
+        : found;
       const q = z.object({ ...paginationQuery }).parse(req.query);
       const recipientFilter = { campaignId: c._id, businessId: c.businessId };
       const [
@@ -430,7 +453,16 @@ export function createCampaignRouter() {
           campaign: c,
           estimatedRecipients,
           recipients: recipients.map((r) => ({
-            ...r,
+            ...(platform
+              ? {
+                  _id: r._id,
+                  status: r.status,
+                  attempts: r.attempts,
+                  errorCode: r.errorCode,
+                  startedAt: r.startedAt,
+                  updatedAt: (r as { updatedAt?: Date }).updatedAt,
+                }
+              : r),
             deliveryEvents: receipts
               .filter((e) => e.providerMessageId === r.providerMessageId)
               .map((e) => ({ type: e.type, occurredAt: e.occurredAt })),
@@ -460,6 +492,7 @@ export function createCampaignRouter() {
     router.patch(`${root}/:campaignId`, ...access, async (req, res) => {
       const c = await getCampaign(String(req.params['campaignId']), scope(req));
       writable(req, c);
+      await gate(req, c.businessId);
       const body = z
         .object({ input: campaignInput, revision: z.number().int().min(0) })
         .strict()
@@ -469,6 +502,7 @@ export function createCampaignRouter() {
     router.post(`${root}/:campaignId/duplicate`, ...access, async (req, res) => {
       const c = await getCampaign(String(req.params['campaignId']), scope(req));
       writable(req, c);
+      await gate(req, c.businessId);
       res.status(201).json({
         data: await createCampaign(
           { ...campaignConfig(c), name: `${c.name.slice(0, 110)} (copy)` },
@@ -482,6 +516,7 @@ export function createCampaignRouter() {
       router.post(`${root}/:campaignId/${action}`, ...access, async (req, res) => {
         const c = await getCampaign(String(req.params['campaignId']), scope(req));
         writable(req, c);
+        await gate(req, c.businessId);
         const input = z
           .object({
             confirm: z.literal(true),

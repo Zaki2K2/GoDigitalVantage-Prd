@@ -142,3 +142,7 @@ Follow-ups: avatars in activity history and admin member lists, cropping UI, orp
 
 ### Resend configuration recheck (2026-10-20)
 Read-only provider listing succeeds with the existing local key. Required mail.godigitalvantage.com is absent; listed domains are not_started/pending. Local email disabled, webhook secret absent; deployed Vercel settings remain inaccessible. No provider/DNS/config changes or email sent. Evidence and preparation: docs/email-resend.md.
+
+## Privacy-first Super Admin (2026-10-28, branch feat/privacy-first-super-admin, uncommitted)
+
+Implemented default-deny customer data for Super Admin, owner-approved support grants, reauth, emergency review, append-only access log, UI restricted states. API vitest 287 passed / 6 failed (the same 6 date-dependent campaign tests that fail on main before these changes); web 201/201; lint, both builds, typecheck clean. Not committed or pushed. See [admin](admin.md).

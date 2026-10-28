@@ -4,10 +4,11 @@ import { AuthService } from '../../core/auth/auth.service';
 import { Icon } from '../../shared/icon';
 import { ImageUpload } from '../../shared/image-upload';
 import { ThemeService } from '../../shared/theme.service';
+import { SupportAccessCard } from './support-access-card';
 
 @Component({
   selector: 'app-settings-page',
-  imports: [RouterLink, Icon, ImageUpload],
+  imports: [RouterLink, Icon, ImageUpload, SupportAccessCard],
   template: `
     <main class="page">
       <header class="page-header">
@@ -22,6 +23,7 @@ import { ThemeService } from '../../shared/theme.service';
           <a href="#appearance"><app-icon name="palette" /> Appearance</a>
           <a href="#account"><app-icon name="user" /> Your account</a>
           <a routerLink="/business"><app-icon name="business" /> Business profile</a>
+          <a href="#support-access"><app-icon name="shield" /> Support access</a>
           <a href="#modules"><app-icon name="dashboard" /> Modules</a>
         </nav>
         <div>
@@ -71,6 +73,7 @@ import { ThemeService } from '../../shared/theme.service';
             </dl>
             <p class="muted mt-4 mb-0">Account editing and password reset are planned.</p>
           </section>
+          <app-support-access-card />
           <section id="modules" class="card">
             <h2>Workspace capabilities</h2>
             <p class="muted">Available today and what comes next.</p>

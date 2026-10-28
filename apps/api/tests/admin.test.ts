@@ -12,6 +12,8 @@ import { RefreshToken } from '../src/modules/auth/refresh-token.model';
 import { Questionnaire } from '../src/modules/questionnaires/questionnaire.model';
 import { Reward } from '../src/modules/rewards/reward.model';
 import { loadPublished } from '../src/modules/questionnaires/questionnaire.service';
+import { AdminReauth, SupportGrant } from '../src/modules/admin/support.model';
+import { activeGrant, reauth } from './support-helpers';
 
 const app = createApp();
 let seq = 0;
@@ -61,6 +63,8 @@ beforeEach(async () => {
     Business.deleteMany({}),
     BusinessMembership.deleteMany({}),
     AdminAudit.deleteMany({}),
+    SupportGrant.deleteMany({}),
+    AdminReauth.deleteMany({}),
     RefreshToken.deleteMany({}),
     Questionnaire.deleteMany({}),
   ]);
@@ -109,7 +113,7 @@ describe('platform authorization and safe reads', () => {
     expect((await admin.get('/api/v1/admin/businesses/not-an-id')).status).toBe(422);
     expect((await admin.get('/api/v1/admin/businesses/aaaaaaaaaaaaaaaaaaaaaaaa')).status).toBe(404);
     expect((await admin.get('/api/v1/admin/businesses?pageSize=10000')).status).toBe(422);
-    expect((await admin.get('/api/v1/admin/responses?from=bad')).status).toBe(422);
+    expect((await admin.get('/api/v1/admin/forms?from=bad')).status).toBe(422);
   });
   it('paginates, filters and escapes search; finds businesses by owner', async () => {
     const admin = await client(true);
@@ -173,6 +177,11 @@ describe('privileged mutations', () => {
     const admin = await client(true);
     const owner = await client();
     const b = await business(owner);
+    expect(
+      (await admin.patch(`/api/v1/admin/businesses/${b._id}`, { name: 'Updated' })).status,
+    ).toBe(403);
+    await activeGrant(admin.user._id, b._id, ['business_profile'], 'write');
+    await reauth(admin.user._id);
     expect(
       (await admin.patch(`/api/v1/admin/businesses/${b._id}`, { name: 'Updated' })).status,
     ).toBe(200);
@@ -299,12 +308,16 @@ describe('forms and memberships', () => {
       },
     });
     const url = `/api/v1/admin/forms/${form._id}`;
-    expect(
-      (await admin.post(`${url}/publish`, { confirm: true, expectedRevision: 999 })).status,
-    ).toBe(409);
+    const grant = await activeGrant(admin.user._id, b._id, ['forms'], 'write');
+    await reauth(admin.user._id);
+    const publishUrl = `/api/v1/admin/support/${grant._id}/forms/${form._id}/publish`;
     expect(
       (await admin.post(`${url}/publish`, { confirm: true, expectedRevision: 1 })).status,
-    ).toBe(200);
+    ).toBe(422);
+    expect((await admin.post(publishUrl, { confirm: true, expectedRevision: 999 })).status).toBe(
+      409,
+    );
+    expect((await admin.post(publishUrl, { confirm: true, expectedRevision: 1 })).status).toBe(200);
     const published = await loadPublished(b.slug);
     expect(published.version.version).toBe(1);
     expect((await admin.post(`${url}/archive`, { confirm: true })).status).toBe(200);
@@ -316,7 +329,7 @@ describe('forms and memberships', () => {
     expect((await admin.get(`${url}/versions`)).body.data).toHaveLength(1);
     expect(
       (
-        await AdminAudit.findOne({ action: 'FORM_PUBLISH', outcome: 'failed' }).lean()
+        await AdminAudit.findOne({ action: 'FORM_PUBLISH_UNDER_GRANT', outcome: 'failed' }).lean()
       )?.targetId.toString(),
     ).toBe(String(form._id));
   });
@@ -371,8 +384,11 @@ it('uses supported promotion transitions, hides identity hashes, and audits fail
     validityDays: 7,
     identityHash: 'private-identity-hash',
   });
-  const url = `/api/v1/admin/promotions/${reward._id}`;
-  const detail = await admin.get(url);
+  const grant = await activeGrant(admin.user._id, b._id, ['rewards'], 'write');
+  await reauth(admin.user._id);
+  const url = `/api/v1/admin/support/${grant._id}/rewards/${reward._id}`;
+  const detail = await admin.get(`/api/v1/admin/support/${grant._id}/rewards`);
+  expect(detail.status).toBe(200);
   expect(JSON.stringify(detail.body)).not.toMatch(/identityHash|private-identity-hash/);
   expect((await owner.post(`${url}/approve`, { confirm: true })).status).toBe(403);
   expect((await admin.post(`${url}/approve`, { confirm: true })).status).toBe(200);
@@ -380,7 +396,11 @@ it('uses supported promotion transitions, hides identity hashes, and audits fail
   expect((await admin.post(`${url}/cancel`, { confirm: true })).status).toBe(200);
   expect((await Reward.findById(reward._id).lean())?.status).toBe('cancelled');
   expect(
-    (await AdminAudit.findOne({ targetId: reward._id, action: 'PROMOTION_REJECT' }).lean())
-      ?.outcome,
+    (
+      await AdminAudit.findOne({
+        targetId: reward._id,
+        action: 'PROMOTION_REJECT_UNDER_GRANT',
+      }).lean()
+    )?.outcome,
   ).toBe('failed');
 });

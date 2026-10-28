@@ -310,13 +310,40 @@ export async function businessState(
 }
 
 export async function instantRewardAccess(actorId: string, targetId: string, enabled: boolean) {
+  return permissionAccess(
+    actorId,
+    targetId,
+    enabled,
+    'instant_rewards:manage',
+    'INSTANT_REWARD_ACCESS_CHANGED',
+  );
+}
+
+/** Break-glass support access is a separate, individually granted permission. */
+export async function emergencyAccess(actorId: string, targetId: string, enabled: boolean) {
+  return permissionAccess(
+    actorId,
+    targetId,
+    enabled,
+    'support:emergency',
+    'SUPPORT_EMERGENCY_PERMISSION_CHANGED',
+  );
+}
+
+async function permissionAccess(
+  actorId: string,
+  targetId: string,
+  enabled: boolean,
+  permission: 'instant_rewards:manage' | 'support:emergency',
+  action: string,
+) {
   return mutate(
     {
       actorId,
       targetId,
       scope: 'platform-users',
       entity: 'users',
-      action: 'INSTANT_REWARD_ACCESS_CHANGED',
+      action,
       after: { enabled },
     },
     async (record) => {
@@ -339,8 +366,8 @@ export async function instantRewardAccess(actorId: string, targetId: string, ena
         { _id: targetId },
         {
           ...(enabled
-            ? { $addToSet: { permissions: 'instant_rewards:manage' } }
-            : { $pull: { permissions: 'instant_rewards:manage' } }),
+            ? { $addToSet: { permissions: permission } }
+            : { $pull: { permissions: permission } }),
           $inc: { sessionVersion: 1 },
           $set: { sessionsRevokedAt: new Date() },
         },

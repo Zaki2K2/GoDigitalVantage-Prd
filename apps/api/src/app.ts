@@ -8,6 +8,7 @@ import {
 } from './modules/instant-rewards/instant-reward.routes';
 import { createImageRouter, createPublicImageRouter } from './modules/images/image.routes';
 import { createAdminRouter } from './modules/admin/admin.routes';
+import { createSupportOwnerRouter } from './modules/admin/support.routes';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -55,6 +56,7 @@ export function createApp(rewards = new InstantRewardsService()) {
     // Campaign routes own their guards; handle them before the broad /admin middleware.
     createCampaignRouter(),
     createAdminRouter(),
+    createSupportOwnerRouter(),
     createBusinessRouter(),
     createQuestionnaireRouter(),
     createQrRouter(),

@@ -7,7 +7,10 @@ const userSchema = new Schema(
   {
     fullName: { type: String, required: true, trim: true, maxlength: 120 },
     emailLowercase: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    permissions: { type: [{ type: String, enum: ['instant_rewards:manage'] }], default: [] },
+    permissions: {
+      type: [{ type: String, enum: ['instant_rewards:manage', 'support:emergency'] }],
+      default: [],
+    },
     platformRole: { type: String, enum: ['USER', 'SUPER_ADMIN'], default: 'USER' },
     sessionVersion: { type: Number, default: 0, min: 0 },
     sessionsRevokedAt: { type: Date, default: null },

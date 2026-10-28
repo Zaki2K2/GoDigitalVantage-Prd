@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app';
+import { AdminReauth, SupportGrant } from '../src/modules/admin/support.model';
+import { activeGrant, reauth } from './support-helpers';
 import { User } from '../src/modules/auth/user.model';
 import { Business } from '../src/modules/businesses/business.model';
 import { BusinessMembership } from '../src/modules/businesses/membership.model';
@@ -124,6 +126,8 @@ describe('campaign trigger rules', () => {
 describe('campaign API and execution', () => {
   const app = createApp();
   const models = [
+    SupportGrant,
+    AdminReauth,
     Campaign,
     CampaignExecution,
     CampaignRecipient,
@@ -278,6 +282,11 @@ describe('campaign API and execution', () => {
   it('allows Super Admin inspection and scoped platform creation without tenant bypass', async () => {
     expect((await owner.agent.get('/api/v1/admin/campaigns')).status).toBe(403);
     await User.updateOne({ _id: other.id }, { $set: { platformRole: 'SUPER_ADMIN' } });
+    expect(
+      (await other.post('/api/v1/admin/campaigns', { input: input(), businessId })).status,
+    ).toBe(403);
+    await activeGrant(other.id, businessId, ['campaigns'], 'write');
+    await reauth(other.id);
     const r = await other.post('/api/v1/admin/campaigns', { input: input(), businessId });
     expect(r.status).toBe(201);
     expect(r.body.data.ownerType).toBe('platform');
@@ -292,11 +301,15 @@ describe('campaign API and execution', () => {
     const t = await other.post('/api/v1/admin/campaigns/templates', input());
     expect(t.status).toBe(201);
     const url = `/api/v1/admin/campaigns/templates/${t.body.data._id}/assign`;
+    await activeGrant(other.id, businessId, ['campaigns'], 'write');
+    await reauth(other.id);
+    // Bulk assignment only reaches businesses that approved write access.
     const r = await other.post(url, { all: true });
     expect(r.status).toBe(201);
-    expect(r.body.data).toHaveLength(2);
+    expect(r.body.data).toHaveLength(1);
+    expect((await other.post(url, { businessIds: [otherBusinessId] })).status).toBe(403);
     expect((await other.post(url, { businessIds: [businessId] })).status).toBe(201);
-    expect(await Campaign.countDocuments()).toBe(2);
+    expect(await Campaign.countDocuments()).toBe(1);
   });
   it('scopes selected contacts and segmentation to one tenant', async () => {
     const a = await contact({ tags: ['vip'], segment: 'local', loyaltyLevel: 'gold' });

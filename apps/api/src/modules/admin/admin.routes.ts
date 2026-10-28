@@ -1,5 +1,3 @@
-import * as rewardService from '../rewards/reward.service';
-import { decisionSchema } from '../rewards/reward.schemas';
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
@@ -9,9 +7,10 @@ import { requireSuperAdmin } from './admin.auth';
 import { idSchema, listSchema } from './admin.schemas';
 import * as service from './admin.service';
 import * as actions from './admin.actions';
+import { registerSupportAdminRoutes } from './support.routes';
+import { authorizeBusinessWrite } from './support-access';
 import { Business } from '../businesses/business.model';
 import { updateBusinessSchema } from '../businesses/business.schemas';
-import { publish } from '../questionnaires/questionnaire.service';
 import { Questionnaire, QuestionnaireVersion } from '../questionnaires/questionnaire.model';
 import { publicUrlFor } from '../qr/qr.routes';
 import { env } from '../../config/env';
@@ -21,6 +20,8 @@ export function createAdminRouter() {
   const router = Router();
   router.use('/admin', requireAuth, requireSuperAdmin);
   const id = (value: unknown) => idSchema.parse(value);
+  // Registered first: removed customer-data paths must be refused (and audited) before any generic handler.
+  registerSupportAdminRoutes(router);
   router.post('/admin/users/:id/instant-reward-access', async (req, res) => {
     const body = z
       .object({ enabled: z.boolean(), confirm: z.literal(true) })
@@ -28,6 +29,15 @@ export function createAdminRouter() {
       .parse(req.body);
     res.json({
       data: await actions.instantRewardAccess(req.auth!.userId, id(req.params['id']), body.enabled),
+    });
+  });
+  router.post('/admin/users/:id/emergency-access', async (req, res) => {
+    const body = z
+      .object({ enabled: z.boolean(), confirm: z.literal(true) })
+      .strict()
+      .parse(req.body);
+    res.json({
+      data: await actions.emergencyAccess(req.auth!.userId, id(req.params['id']), body.enabled),
     });
   });
   router.get('/admin/dashboard', async (_req, res) => {
@@ -93,9 +103,10 @@ export function createAdminRouter() {
     const q = listSchema.parse({ search: req.query['search'], pageSize: 5 });
     if (!q.search) return res.json({ data: [] });
     const groups = await Promise.all(
-      (['businesses', 'users', 'forms', 'contacts', 'responses'] as const).map(
-        async (resource) => ({ resource, ...(await service.list(resource, q)) }),
-      ),
+      service.PLATFORM_RESOURCES.filter((r) => r !== 'activity').map(async (resource) => ({
+        resource,
+        ...(await service.list(resource, q)),
+      })),
     );
     res.json({ data: groups });
   });
@@ -103,40 +114,6 @@ export function createAdminRouter() {
     const userId = id(req.params['id']);
     await service.detail('users', userId);
     res.json(await service.memberships('user', userId, listSchema.parse(req.query)));
-  });
-  router.post('/admin/promotions/:id/:action', async (req, res) => {
-    const target = id(req.params['id']);
-    const action = z.enum(['approve', 'reject', 'cancel']).parse(req.params['action']);
-    const { confirm, ...body } = z
-      .object({ confirm: z.literal(true), note: z.string().max(500).optional() })
-      .strict()
-      .parse(req.body);
-    void confirm;
-    const { note } = decisionSchema.parse(body);
-    const before = await service.detail('promotions', target);
-    const businessId = String(before['businessId']);
-    const log = await service.audit(
-      req.auth!.userId,
-      'promotions',
-      target,
-      `PROMOTION_${action.toUpperCase()}`,
-      { status: before['status'] },
-      { action },
-      businessId,
-    );
-    try {
-      const fn = {
-        approve: rewardService.approveReward,
-        reject: rewardService.rejectReward,
-        cancel: rewardService.cancelReward,
-      }[action];
-      const data = await fn(businessId, req.auth!.userId, target, note);
-      await log.updateOne({ outcome: 'completed' });
-      res.json({ data });
-    } catch (err) {
-      await log.updateOne({ outcome: 'failed' });
-      throw err;
-    }
   });
   router.get('/admin/businesses/:id/members', async (req, res) => {
     const businessId = id(req.params['id']);
@@ -192,18 +169,12 @@ export function createAdminRouter() {
   });
   router.post('/admin/forms/:id/:action', async (req, res) => {
     const target = id(req.params['id']);
-    const action = z.enum(['publish', 'archive', 'restore']).parse(req.params['action']);
-    const input = z
-      .object({
-        confirm: z.literal(true),
-        expectedRevision: z.number().int().positive().optional(),
-      })
+    const action = z.enum(['archive', 'restore']).parse(req.params['action']);
+    z.object({ confirm: z.literal(true) })
       .strict()
       .parse(req.body);
     const before = await service.detail('forms', target);
     const businessId = String(before['businessId']);
-    const revision =
-      action === 'publish' ? z.number().int().positive().parse(input.expectedRevision) : undefined;
     const log = await service.audit(
       req.auth!.userId,
       'forms',
@@ -213,12 +184,11 @@ export function createAdminRouter() {
         adminArchived: before['adminArchived'] ?? false,
         publishedVersion: before['publishedVersion'],
       },
-      { action, expectedRevision: revision },
+      { action },
       businessId,
     );
     try {
-      if (action === 'publish') await publish(businessId, req.auth!.userId, revision!);
-      else await Questionnaire.updateOne({ _id: target }, { adminArchived: action === 'archive' });
+      await Questionnaire.updateOne({ _id: target }, { adminArchived: action === 'archive' });
       await log.updateOne({ outcome: 'completed' });
       res.json({ data: await service.detail('forms', target) });
     } catch (err) {
@@ -253,6 +223,8 @@ export function createAdminRouter() {
   });
   router.patch('/admin/businesses/:id', async (req, res) => {
     const target = id(req.params['id']);
+    // Editing business-owned content is not a platform power: it needs an owner-approved write grant.
+    await authorizeBusinessWrite(req, target, 'business_profile');
     const patch = updateBusinessSchema.parse(req.body);
     const before = await service.detail('businesses', target);
     const log = await service.audit(
@@ -302,7 +274,7 @@ export function createAdminRouter() {
     await actions.platformRole(req.auth!.userId, target, platformRole);
     res.json({ data: await service.detail('users', target) });
   });
-  for (const resource of Object.keys(service.resources) as service.Resource[]) {
+  for (const resource of service.PLATFORM_RESOURCES) {
     router.get(`/admin/${resource}`, async (req, res) =>
       res.json(await service.list(resource, listSchema.parse(req.query))),
     );

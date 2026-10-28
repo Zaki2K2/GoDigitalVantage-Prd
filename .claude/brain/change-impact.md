@@ -50,3 +50,7 @@ Mongo connection cache/pool or Vercel entry/config changes -> serverless, db-cac
 ## Profile image and business logo (2026-10-20)
 
 Image DTO fields (`avatarUrl`/`logoUrl`) -> `toUserDto`, `toBusinessDto`, `getPublicForm`, web `AuthUser`/`Business`/`PublicForm` types, exact-payload tests in questionnaire/submission tests. Size or type limits (`MAX_IMAGE_BYTES`, `IMAGE_CONTENT_TYPES`) -> `image-resize.ts` (client limits) and the `express.raw` parser in `image.routes.ts`. Logo permission changes -> `requireBusinessAccess`, owner check in image routes, public slug route. Admin projections -> `admin.service.ts` fields and `record-details.ts` hidden keys. See `apps/api/tests/images.test.ts`.
+
+## Privacy-first Super Admin (2026-10-28)
+
+New admin resources must be classified in `admin.service.ts` (`PLATFORM_RESOURCES` vs `RESTRICTED_RESOURCES`); anything holding tenant customer data belongs in the restricted set and is reachable only through `support.routes.ts`. Changes to campaign routes under `/admin/campaigns` must keep `authorizeBusinessWrite` gating and the recipient-field stripping. Changes to `support_access_log` must stay append-only. Check `tests/privacy-admin.test.ts`, `tests/admin.test.ts`, `tests/campaigns.test.ts`, web `admin.spec.ts`, campaign picker/spec, shell nav and Settings support card.

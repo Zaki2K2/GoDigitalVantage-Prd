@@ -137,22 +137,29 @@ export class CampaignPicker implements OnChanges {
   }
   protected load(page = 1) {
     if (this.resource === 'contacts' && !this.businessId) return;
+    if (this.resource === 'contacts' && this.admin) {
+      // Platform administrators never browse a business's customers; the API refuses it as well.
+      this.request?.unsubscribe();
+      this.rows.set([]);
+      this.pagination.set(null);
+      this.error.set(
+        'Individual customers belong to the business and are not visible to platform administrators. Use a segment, tag or all-customers audience instead.',
+      );
+      return;
+    }
     this.request?.unsubscribe();
     this.loading.set(true);
     this.error.set('');
     const url =
       this.resource === 'businesses'
         ? '/api/v1/admin/businesses'
-        : this.admin
-          ? '/api/v1/admin/contacts'
-          : `/api/v1/businesses/${this.businessId}/contacts`;
+        : `/api/v1/businesses/${this.businessId}/contacts`;
     this.request = this.http
       .get<Page<Choice>>(url, {
         params: {
           page,
           pageSize: 10,
           search: this.search,
-          ...(this.admin && this.resource === 'contacts' ? { businessId: this.businessId } : {}),
           ...(this.resource === 'businesses' ? { status: 'active' } : {}),
         },
       })

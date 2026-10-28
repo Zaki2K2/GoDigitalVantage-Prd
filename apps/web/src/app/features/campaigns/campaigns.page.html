@@ -1119,7 +1119,8 @@
                 <h3>Recipient history</h3>
                 @for (r of d.recipients; track r._id) {
                   <p>
-                    {{ r.contactId }} · {{ r.status }} · {{ r.attempts }} attempts
+                    {{ r.contactId || 'Recipient ' + ($index + 1) }} · {{ r.status }} ·
+                    {{ r.attempts }} attempts
                     @if (r.error) {
                       <span class="error">{{ r.error }}</span>
                     }
