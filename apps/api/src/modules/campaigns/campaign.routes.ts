@@ -9,6 +9,7 @@ import { findMembership } from '../businesses/business.service';
 import { Business } from '../businesses/business.model';
 import { requireSuperAdmin } from '../admin/admin.auth';
 import { authorizeBusinessWrite } from '../admin/support-access';
+import { reviewPlatformCampaigns } from './campaign.legacy-audit';
 import { Contact } from '../contacts/contact.model';
 import { EmailDeliveryEvent } from '../email/email.model';
 import { AppError, forbidden, notFound } from '../../shared/errors';
@@ -103,6 +104,13 @@ export function createCampaignRouter() {
       res.json({ data: { state: input.state } });
     },
   );
+  router.get('/admin/campaigns/owner-review', requireAuth, requireSuperAdmin, async (_req, res) => {
+    const rows = await reviewPlatformCampaigns();
+    res.set('Cache-Control', 'no-store').json({
+      data: rows.filter((r) => r.needsOwnerReview),
+      total: rows.length,
+    });
+  });
   router.get('/admin/campaigns/monitoring', requireAuth, requireSuperAdmin, async (req, res) => {
     const q = z
       .object({
@@ -191,6 +199,38 @@ export function createCampaignRouter() {
           throw forbidden('Platform campaigns are managed by Super Admin');
       }
     };
+    if (!platform)
+      router.post(`${root}/:campaignId/owner-approval`, ...access, async (req, res) => {
+        // Only the owner decides whether platform staff may message this business's customers.
+        if (req.tenant!.role !== 'owner')
+          throw forbidden('Only business owners can approve platform campaigns');
+        const input = z
+          .object({ decision: z.enum(['approve', 'reject']), confirm: z.literal(true) })
+          .strict()
+          .parse(req.body);
+        const c = await getCampaign(String(req.params['campaignId']), scope(req));
+        if (c.ownerType !== 'platform') throw notFound('Campaign not found');
+        if (!['draft', 'scheduled', 'active', 'paused'].includes(c.status))
+          throw new AppError(409, 'INVALID_STATE', 'This campaign is closed');
+        const status = input.decision === 'approve' ? 'approved' : 'rejected';
+        await campaignAudit(
+          req.auth!.userId,
+          c.businessId,
+          c._id,
+          `campaign_owner_${status}`,
+          async () => {
+            await Campaign.updateOne(
+              { _id: c._id, businessId: c.businessId },
+              {
+                $set: {
+                  ownerApproval: { status, decidedBy: req.auth!.userId, decidedAt: new Date() },
+                },
+              },
+            );
+          },
+        );
+        res.json({ data: { ownerApproval: status } });
+      });
     // Platform operators may only change a business's campaigns under an owner-approved write grant.
     const gate = async (req: import('express').Request, businessId: unknown) => {
       if (platform) await authorizeBusinessWrite(req, String(businessId), 'campaigns');

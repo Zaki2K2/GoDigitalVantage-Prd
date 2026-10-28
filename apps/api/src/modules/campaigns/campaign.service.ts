@@ -8,6 +8,19 @@ import { type CampaignInput, idSchema } from './campaign.domain';
 import { estimateAudience } from './campaign.audience';
 import { Reward } from '../rewards/reward.model';
 
+/** Platform campaigns never reach a business's customers without that owner's current approval. */
+export const ownerApproved = (c: Pick<CampaignDoc, 'ownerType' | 'ownerApproval'>) =>
+  c.ownerType !== 'platform' || c.ownerApproval?.status === 'approved';
+
+export function assertPlatformAudience(input: CampaignInput) {
+  if (input.audience.type === 'selected' || input.audience.contactIds.length)
+    throw new AppError(
+      422,
+      'AUDIENCE_NOT_ALLOWED',
+      'Platform campaigns cannot target individually selected customers',
+    );
+}
+
 export async function withCampaignLock<T>(id: string, run: () => Promise<T>): Promise<T> {
   const token = randomUUID();
   try {
@@ -71,6 +84,7 @@ export async function createCampaign(
   platform = false,
   assignmentKey?: string,
 ) {
+  if (platform) assertPlatformAudience(input);
   if (assignmentKey) {
     const existing = await Campaign.findOne({ assignmentKey, businessId }).lean();
     if (existing) return existing;
@@ -88,6 +102,7 @@ export async function createCampaign(
         businessId,
         createdBy: actorId,
         ownerType: platform ? 'platform' : 'business',
+        ...(platform ? { ownerApproval: { status: 'pending' } } : {}),
         ...(assignmentKey ? { assignmentKey } : {}),
       });
     },
@@ -100,11 +115,17 @@ export async function updateCampaign(
   actorId: string,
   revision: number,
 ) {
+  if (c.ownerType === 'platform') assertPlatformAudience(input);
   return withCampaignLock(String(c._id), async () => {
     await campaignAudit(actorId, c.businessId, c._id, 'campaign_updated', async () => {
       const updated = await Campaign.updateOne(
         { _id: c._id, businessId: c.businessId, status: 'draft', revision },
-        { $set: input, $inc: { revision: 1 } },
+        // Any content change voids a previous owner approval.
+        {
+          $set: input,
+          $inc: { revision: 1 },
+          ...(c.ownerType === 'platform' ? { $unset: { ownerApproval: 1 } } : {}),
+        },
       );
       if (!updated.modifiedCount)
         throw new AppError(409, 'REVISION_CONFLICT', 'Only the current draft can be edited');
@@ -134,6 +155,12 @@ export async function transitionCampaign(
     if (!from.includes(current.status))
       throw new AppError(409, 'INVALID_STATE', 'Campaign action is unavailable');
     if (action === 'schedule' || action === 'activate' || action === 'resume') {
+      if (!ownerApproved(current))
+        throw new AppError(
+          409,
+          'OWNER_APPROVAL_REQUIRED',
+          'The business owner must approve this platform campaign before it can run',
+        );
       if (current.endDate <= new Date())
         throw new AppError(422, 'CAMPAIGN_EXPIRED', 'Campaign has ended');
       const count = await estimateAudience(current, current.businessId);

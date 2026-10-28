@@ -14,7 +14,7 @@ import { Reward } from '../src/modules/rewards/reward.model';
 import { Questionnaire } from '../src/modules/questionnaires/questionnaire.model';
 import { AdminAudit } from '../src/modules/admin/admin.model';
 import { AdminReauth, SupportAccessLog, SupportGrant } from '../src/modules/admin/support.model';
-import { activeGrant, reauth } from './support-helpers';
+import { activeGrant, seedSession } from './support-helpers';
 
 const app = createApp();
 const PASSWORD = 'test-secure-password-123';
@@ -64,6 +64,10 @@ async function client(
     platformRole: admin ? 'SUPER_ADMIN' : 'USER',
     permissions,
   });
+  return session(user);
+}
+/** One browser or device: its own cookie jar and refresh-token family. */
+async function session(user: InstanceType<typeof User>) {
   const agent = request.agent(app);
   const csrf = (await agent.get('/api/v1/auth/csrf')).body.data.csrfToken as string;
   const login = await agent
@@ -77,6 +81,14 @@ async function client(
     get: (url: string) => agent.get(url),
     post: (url: string, body: object = {}) => agent.post(url).set('X-CSRF-Token', csrf).send(body),
     patch: (url: string, body: object) => agent.patch(url).set('X-CSRF-Token', csrf).send(body),
+    reauth: async () => {
+      const r = await agent
+        .post('/api/v1/admin/reauth')
+        .set('X-CSRF-Token', csrf)
+        .send({ password: PASSWORD });
+      expect(r.status).toBe(200);
+    },
+    agent,
   };
 }
 type Client = Awaited<ReturnType<typeof client>>;
@@ -329,7 +341,7 @@ describe('controlled support access', () => {
     expect(ok.body.data).toHaveLength(1);
     expect(ok.body.data[0].businessId).toBe(String(t.b._id));
     expect((await admin.get(`/api/v1/admin/support/${grantId}/contacts`)).status).toBe(403);
-    await reauth(admin.id);
+    await admin.reauth();
     const write = await admin.post(
       `/api/v1/admin/support/${grantId}/rewards/${t.reward._id}/approve`,
       { confirm: true },
@@ -450,12 +462,12 @@ describe('controlled support access', () => {
       scopes: ['responses'],
     };
     const emergency = '/api/v1/admin/support-grants/emergency';
-    await reauth(plain.id);
+    await plain.reauth();
     expect((await plain.post(emergency, body)).status).toBe(403);
 
     const breakGlass = await client(true, ['support:emergency']);
     expect((await breakGlass.post(emergency, body)).status).toBe(403); // reauth required
-    await reauth(breakGlass.id);
+    await breakGlass.reauth();
     const short = await breakGlass.post(emergency, { ...body, justification: 'too short' });
     expect(short.status).toBe(422);
     const created = await breakGlass.post(emergency, body);
@@ -488,7 +500,7 @@ describe('controlled support access', () => {
     const patch = () => admin.patch(`/api/v1/admin/businesses/${t.b._id}`, { name: 'Renamed' });
     expect((await patch()).status).toBe(403);
     await activeGrant(admin.id, t.b._id, ['business_profile'], 'read');
-    await reauth(admin.id);
+    await admin.reauth();
     expect((await patch()).status).toBe(403); // read-only grant is insufficient
     await activeGrant(admin.id, t.b._id, ['business_profile'], 'write');
     expect((await patch()).status).toBe(200);
@@ -520,5 +532,148 @@ describe('authorization boundaries', () => {
     });
     expect(asOwner.status).toBe(403);
     expect((await owner.post('/api/v1/admin/reauth', { password: PASSWORD })).status).toBe(403);
+  });
+});
+
+describe('re-authentication is bound to one session', () => {
+  async function writeSetup() {
+    const adminA = await client(true);
+    const owner = await client();
+    const t = await tenant(owner);
+    await activeGrant(adminA.id, t.b._id, ['business_profile'], 'write');
+    const patch = (c: Client) =>
+      c.patch(`/api/v1/admin/businesses/${t.b._id}`, { name: 'Renamed by support' });
+    return { adminA, owner, t, patch };
+  }
+
+  it('cannot be reused from another browser or device of the same account', async () => {
+    const { adminA, patch } = await writeSetup();
+    await adminA.reauth();
+    const deviceB = await session(adminA.user);
+    expect((await patch(deviceB)).status).toBe(403);
+    expect((await patch(adminA)).status).toBe(200);
+    await deviceB.reauth();
+    expect((await patch(deviceB)).status).toBe(200);
+  });
+
+  it('expires after its short validity window', async () => {
+    const { adminA, patch } = await writeSetup();
+    await adminA.reauth();
+    expect((await patch(adminA)).status).toBe(200);
+    await AdminReauth.updateMany({}, { expiresAt: new Date(Date.now() - 1000) });
+    expect((await patch(adminA)).status).toBe(403);
+  });
+
+  it('dies immediately when the session is revoked, logged out or the account is blocked', async () => {
+    const { adminA, t, patch } = await writeSetup();
+    // Logout revokes the refresh family; a stolen access cookie cannot keep a stale proof alive.
+    await adminA.reauth();
+    const other = await client(true);
+    await activeGrant(other.id, t.b._id, ['business_profile'], 'write');
+    await other.reauth();
+    expect((await patch(other)).status).toBe(200);
+    const logout = await other.post('/api/v1/auth/logout');
+    expect(logout.status).toBeLessThan(300);
+    // A fresh login is a different session: the old proof is useless there.
+    const again = await session(other.user);
+    expect((await patch(again)).status).toBe(403);
+    await again.reauth();
+    expect((await patch(again)).status).toBe(200);
+    // Revoking sessions bumps the version: both the cookie and the proof stop working at once.
+    const revoker = await client(true);
+    const revoke = await revoker.post(`/api/v1/admin/users/${again.id}/action`, {
+      action: 'revoke-sessions',
+      confirm: true,
+    });
+    expect(revoke.status).toBe(200);
+    expect((await patch(again)).status).toBe(401);
+    const fresh = await session(again.user);
+    expect((await patch(fresh)).status).toBe(403);
+  });
+
+  it('rejects legacy tokens without a session id and proofs for another account', async () => {
+    const admin = await client(true);
+    const owner = await client();
+    const t = await tenant(owner);
+    await activeGrant(admin.id, t.b._id, ['business_profile'], 'write');
+    // A proof stored for the same session id but a different user is ignored.
+    const sid = 'forged-session-id';
+    await seedSession(owner.user._id, sid);
+    await AdminReauth.create({
+      userId: owner.user._id,
+      sessionId: sid,
+      sessionVersion: 0,
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    const patch = await admin.patch(`/api/v1/admin/businesses/${t.b._id}`, { name: 'x' });
+    expect(patch.status).toBe(403);
+  });
+});
+
+describe('grant hardening and escalation', () => {
+  it('never lets a grant for one tenant touch another tenant or a different resource scope', async () => {
+    const admin = await client(true);
+    const ownerA = await client();
+    const ownerB = await client();
+    const a = await tenant(ownerA, 'A');
+    const b = await tenant(ownerB, 'B');
+    const grant = await activeGrant(admin.id, a.b._id, ['rewards', 'forms'], 'write');
+    await admin.reauth();
+    const base = `/api/v1/admin/support/${grant._id}`;
+    // Records of tenant B are invisible through tenant A's grant.
+    expect(
+      (await admin.post(`${base}/rewards/${b.reward._id}/approve`, { confirm: true })).status,
+    ).toBe(404);
+    expect((await Reward.findById(b.reward._id).lean())?.status).toBe('pending_approval');
+    expect(
+      (
+        await admin.post(`${base}/forms/${b.form._id}/publish`, {
+          confirm: true,
+          expectedRevision: 1,
+        })
+      ).status,
+    ).toBe(404);
+    // Scope escalation: business profile, responses and contacts were not granted.
+    expect((await admin.patch(`${base}/business`, { name: 'x' })).status).toBe(403);
+    expect((await admin.get(`${base}/responses`)).status).toBe(403);
+    expect((await admin.get(`${base}/contacts`)).status).toBe(403);
+    // The owner of B cannot approve, revoke or even see A's grant.
+    const pending = await admin.post('/api/v1/admin/support-grants', {
+      businessId: String(a.b._id),
+      ticketRef: 'T-9',
+      reason: 'Needs owner of A to approve',
+      scopes: ['responses'],
+    });
+    for (const action of ['approve', 'revoke', 'deny']) {
+      const r = await ownerB.post(
+        `/api/v1/businesses/${b.b._id}/support-grants/${pending.body.data.id}/${action}`,
+      );
+      expect(r.status, action).toBe(404);
+    }
+    expect((await SupportGrant.findById(pending.body.data.id).lean())?.status).toBe('pending');
+  });
+
+  it('stops honouring a grant when its approver stops being an active owner', async () => {
+    const admin = await client(true);
+    const owner = await client();
+    const t = await tenant(owner);
+    const grant = await activeGrant(admin.id, t.b._id, ['responses'], 'read');
+    const url = `/api/v1/admin/support/${grant._id}/responses`;
+    expect((await admin.get(url)).status).toBe(200);
+    await BusinessMembership.updateOne({ businessId: t.b._id }, { status: 'disabled' });
+    const denied = await admin.get(url);
+    expect(denied.status).toBe(403);
+    const entry = await SupportAccessLog.findOne({ reason: 'APPROVER_NOT_OWNER' }).lean();
+    expect(entry?.outcome).toBe('denied');
+  });
+
+  it('keeps grants unusable by anyone else even with their id and the same role', async () => {
+    const admin = await client(true);
+    const second = await client(true);
+    const owner = await client();
+    const t = await tenant(owner);
+    const grant = await activeGrant(admin.id, t.b._id, ['responses'], 'read');
+    expect((await second.get(`/api/v1/admin/support/${grant._id}/responses`)).status).toBe(403);
+    expect((await owner.get(`/api/v1/admin/support/${grant._id}/responses`)).status).toBe(403);
   });
 });

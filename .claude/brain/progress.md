@@ -146,3 +146,5 @@ Read-only provider listing succeeds with the existing local key. Required mail.g
 ## Privacy-first Super Admin (2026-10-28, branch feat/privacy-first-super-admin, uncommitted)
 
 Implemented default-deny customer data for Super Admin, owner-approved support grants, reauth, emergency review, append-only access log, UI restricted states. API vitest 287 passed / 6 failed (the same 6 date-dependent campaign tests that fail on main before these changes); web 201/201; lint, both builds, typecheck clean. Not committed or pushed. See [admin](admin.md).
+
+- Hardening pass (2026-10-28): session-bound reauth, owner approval for platform campaigns plus legacy audit tooling, retention/permission tooling, browser E2E on gdv_test (41/41, isolated API :3199 / web :4299), campaign tests stabilised with a frozen Date. See [admin](admin.md).

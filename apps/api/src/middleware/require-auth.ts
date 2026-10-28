@@ -1,7 +1,12 @@
 import type { RequestHandler } from 'express';
 import { ACCESS_COOKIE } from '../modules/auth/cookies';
 import { User } from '../modules/auth/user.model';
-import { accessIssuedAt, accessSessionVersion, verifyAccessToken } from '../modules/auth/tokens';
+import {
+  accessIssuedAt,
+  accessSessionId,
+  accessSessionVersion,
+  verifyAccessToken,
+} from '../modules/auth/tokens';
 import { unauthorized } from '../shared/errors';
 import { timeAuth } from '../shared/perf';
 
@@ -9,7 +14,7 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      auth?: { userId: string };
+      auth?: { userId: string; sessionId?: string };
       tenant?: { businessId: string; role: string };
     }
   }
@@ -35,7 +40,7 @@ export const requireAuth: RequestHandler = async (req, _res, next) => {
     ) {
       return next(unauthorized('Session unavailable'));
     }
-    req.auth = { userId: userId.toLowerCase() };
+    req.auth = { userId: userId.toLowerCase(), sessionId: accessSessionId(String(cookie)) };
     next();
   } catch (err) {
     next(err);

@@ -94,6 +94,8 @@ export function registerSupportAdminRoutes(router: Router) {
     });
     if (failures >= 5)
       throw new AppError(429, 'REAUTH_LOCKED', 'Too many failed attempts. Try again later.');
+    const sessionId = req.auth!.sessionId;
+    if (!sessionId) throw forbidden('Sign in again to confirm your password');
     const user = await User.findById(actor, { passwordHash: 1, sessionVersion: 1 }).lean();
     const ok = !!user && (await verifyPassword(password, user.passwordHash));
     await logAccess({
@@ -108,6 +110,7 @@ export function registerSupportAdminRoutes(router: Router) {
     const expiresAt = new Date(Date.now() + REAUTH_TTL_MS);
     await AdminReauth.create({
       userId: actor,
+      sessionId,
       sessionVersion: user.sessionVersion ?? 0,
       expiresAt,
     });
@@ -174,7 +177,7 @@ export function registerSupportAdminRoutes(router: Router) {
       throw forbidden('Emergency access is not available');
     };
     if (!user?.permissions?.includes('support:emergency')) return deny('NO_EMERGENCY_PERMISSION');
-    if (!(await hasRecentReauth(actor))) return deny('REAUTH_REQUIRED');
+    if (!(await hasRecentReauth(actor, req.auth!.sessionId))) return deny('REAUTH_REQUIRED');
     if (!(await Business.exists({ _id: input.businessId }))) throw notFound('Business not found');
     const now = Date.now();
     const grant = await SupportGrant.create({

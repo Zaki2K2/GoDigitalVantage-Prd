@@ -52,6 +52,8 @@ const reauthSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, required: true },
     sessionVersion: { type: Number, default: 0 },
+    /** Refresh-token family of the login that proved the password; never valid elsewhere. */
+    sessionId: { type: String, required: true },
     expiresAt: { type: Date, required: true },
   },
   { collection: 'admin_reauth' },

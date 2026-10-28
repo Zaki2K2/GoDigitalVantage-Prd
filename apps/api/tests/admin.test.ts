@@ -13,7 +13,7 @@ import { Questionnaire } from '../src/modules/questionnaires/questionnaire.model
 import { Reward } from '../src/modules/rewards/reward.model';
 import { loadPublished } from '../src/modules/questionnaires/questionnaire.service';
 import { AdminReauth, SupportGrant } from '../src/modules/admin/support.model';
-import { activeGrant, reauth } from './support-helpers';
+import { activeGrant, reauth, seedSession } from './support-helpers';
 
 const app = createApp();
 let seq = 0;
@@ -24,11 +24,14 @@ async function client(admin = false) {
     passwordHash: 'private-hash',
     platformRole: admin ? 'SUPER_ADMIN' : 'USER',
   });
-  const token = signAccessToken(String(user._id));
+  const sid = randomUUID();
+  await seedSession(user._id, sid);
+  const token = signAccessToken(String(user._id), 0, sid);
   const cookie = `gdv_at=${token}; gdv_csrf=test-csrf`;
   return {
     user,
     token,
+    sid,
     get: (url: string) => request(app).get(url).set('Cookie', cookie),
     post: (url: string, body: object) =>
       request(app).post(url).set('Cookie', cookie).set('X-CSRF-Token', 'test-csrf').send(body),
@@ -181,7 +184,7 @@ describe('privileged mutations', () => {
       (await admin.patch(`/api/v1/admin/businesses/${b._id}`, { name: 'Updated' })).status,
     ).toBe(403);
     await activeGrant(admin.user._id, b._id, ['business_profile'], 'write');
-    await reauth(admin.user._id);
+    await reauth(admin.user._id, admin.sid);
     expect(
       (await admin.patch(`/api/v1/admin/businesses/${b._id}`, { name: 'Updated' })).status,
     ).toBe(200);
@@ -309,7 +312,7 @@ describe('forms and memberships', () => {
     });
     const url = `/api/v1/admin/forms/${form._id}`;
     const grant = await activeGrant(admin.user._id, b._id, ['forms'], 'write');
-    await reauth(admin.user._id);
+    await reauth(admin.user._id, admin.sid);
     const publishUrl = `/api/v1/admin/support/${grant._id}/forms/${form._id}/publish`;
     expect(
       (await admin.post(`${url}/publish`, { confirm: true, expectedRevision: 1 })).status,
@@ -385,7 +388,7 @@ it('uses supported promotion transitions, hides identity hashes, and audits fail
     identityHash: 'private-identity-hash',
   });
   const grant = await activeGrant(admin.user._id, b._id, ['rewards'], 'write');
-  await reauth(admin.user._id);
+  await reauth(admin.user._id, admin.sid);
   const url = `/api/v1/admin/support/${grant._id}/rewards/${reward._id}`;
   const detail = await admin.get(`/api/v1/admin/support/${grant._id}/rewards`);
   expect(detail.status).toBe(200);

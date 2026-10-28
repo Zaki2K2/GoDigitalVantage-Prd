@@ -15,6 +15,12 @@ export interface CampaignDoc extends CampaignInput {
   lastAttemptAt?: Date | null;
   lastSuccessAt?: Date | null;
   lastError?: string | null;
+  /** Platform campaigns may message a business's customers only after its owner approves. */
+  ownerApproval?: {
+    status: 'pending' | 'approved' | 'rejected';
+    decidedBy?: Types.ObjectId | null;
+    decidedAt?: Date | null;
+  } | null;
 }
 const schema = new Schema<CampaignDoc>(
   {
@@ -43,6 +49,17 @@ const schema = new Schema<CampaignDoc>(
     lastAttemptAt: { type: Date, default: null },
     lastSuccessAt: { type: Date, default: null },
     lastError: { type: String, default: null },
+    ownerApproval: {
+      type: new Schema(
+        {
+          status: { type: String, enum: ['pending', 'approved', 'rejected'], required: true },
+          decidedBy: { type: Schema.Types.ObjectId, default: null },
+          decidedAt: { type: Date, default: null },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
   },
   { timestamps: true, collection: 'campaigns' },
 );

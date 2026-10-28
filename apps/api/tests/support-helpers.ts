@@ -1,4 +1,6 @@
 import type { Types } from 'mongoose';
+import { BusinessMembership } from '../src/modules/businesses/membership.model';
+import { RefreshToken } from '../src/modules/auth/refresh-token.model';
 import {
   AdminReauth,
   SupportGrant,
@@ -15,7 +17,9 @@ export async function activeGrant(
   expiresInMs = 60 * 60_000,
 ) {
   const now = Date.now();
+  const owner = await BusinessMembership.findOne({ businessId, role: 'owner' }).lean();
   return SupportGrant.create({
+    approvedBy: owner?.userId ?? null,
     businessId,
     requestedBy: adminId,
     ticketRef: 'TICKET-1',
@@ -31,10 +35,28 @@ export async function activeGrant(
   });
 }
 
-export async function reauth(adminId: string | Types.ObjectId, sessionVersion = 0) {
+/** Seeds a proof for an exact session (refresh-token family). */
+export async function reauth(
+  adminId: string | Types.ObjectId,
+  sessionId: string,
+  sessionVersion = 0,
+  ttlMs = 5 * 60_000,
+) {
   await AdminReauth.create({
     userId: adminId,
+    sessionId,
     sessionVersion,
-    expiresAt: new Date(Date.now() + 5 * 60_000),
+    expiresAt: new Date(Date.now() + ttlMs),
+  });
+}
+
+/** Creates the refresh-token family a signed access token claims as its session. */
+export async function seedSession(userId: string | Types.ObjectId, sessionId: string) {
+  await RefreshToken.create({
+    userId,
+    familyId: sessionId,
+    tokenHash: sessionId,
+    sessionVersion: 0,
+    expiresAt: new Date(Date.now() + 3_600_000),
   });
 }

@@ -32,10 +32,11 @@ async function issueRefreshToken(
 }
 
 async function startSession(user: UserDoc): Promise<Session> {
+  const familyId = randomUUID();
   return {
     user,
-    accessToken: signAccessToken(user._id.toString(), user.sessionVersion ?? 0),
-    refreshToken: await issueRefreshToken(user._id, randomUUID(), user.sessionVersion ?? 0),
+    accessToken: signAccessToken(user._id.toString(), user.sessionVersion ?? 0, familyId),
+    refreshToken: await issueRefreshToken(user._id, familyId, user.sessionVersion ?? 0),
   };
 }
 
@@ -125,7 +126,7 @@ async function rotateFrom(existing: RefreshTokenDoc, claim: boolean): Promise<Se
   }
   return {
     user,
-    accessToken: signAccessToken(user._id.toString(), user.sessionVersion ?? 0),
+    accessToken: signAccessToken(user._id.toString(), user.sessionVersion ?? 0, existing.familyId),
     // Grace-window replays get a short-lived access token only, never a new refresh token,
     // so a stolen just-rotated token cannot be turned into a persistent session.
     refreshToken: claim

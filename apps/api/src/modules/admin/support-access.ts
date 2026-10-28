@@ -1,6 +1,8 @@
 import type { Request } from 'express';
 import { Types } from 'mongoose';
 import { User } from '../auth/user.model';
+import { BusinessMembership } from '../businesses/membership.model';
+import { RefreshToken } from '../auth/refresh-token.model';
 import { AppError, forbidden } from '../../shared/errors';
 import { AdminReauth, SupportAccessLog, SupportGrant, type SupportScope } from './support.model';
 
@@ -45,6 +47,7 @@ export type GrantLike = {
   expiresAt?: Date | null;
   ticketRef: string;
   emergency?: boolean;
+  approvedBy?: Types.ObjectId | null;
 };
 
 export const isLive = (g: Pick<GrantLike, 'status' | 'expiresAt'>, now = new Date()) =>
@@ -62,14 +65,27 @@ export function effectiveStatus(g: {
   return g.status;
 }
 
-export async function hasRecentReauth(userId: string) {
-  const [user, proof] = await Promise.all([
-    User.findById(userId, { sessionVersion: 1 }).lean(),
-    AdminReauth.findOne({ userId, expiresAt: { $gt: new Date() } })
+/**
+ * Valid only for the exact login (refresh-token family) that entered the password, while the
+ * account is active, the session version is unchanged and that family has not been revoked.
+ */
+export async function hasRecentReauth(userId: string, sessionId: string | undefined) {
+  if (!sessionId) return false;
+  const [user, proof, family] = await Promise.all([
+    User.findById(userId, { sessionVersion: 1, status: 1 }).lean(),
+    AdminReauth.findOne({ userId, sessionId, expiresAt: { $gt: new Date() } })
       .sort({ expiresAt: -1 })
       .lean(),
+    RefreshToken.exists({ userId, familyId: sessionId, familyRevoked: false, revokedAt: null }),
   ]);
-  return !!user && !!proof && (proof.sessionVersion ?? 0) === (user.sessionVersion ?? 0);
+  // The active token of a family has revokedAt=null; rotated ones are filtered by that clause.
+  return (
+    !!user &&
+    user.status === 'active' &&
+    !!proof &&
+    !!family &&
+    (proof.sessionVersion ?? 0) === (user.sessionVersion ?? 0)
+  );
 }
 
 type Need = { scope: SupportScope; operation: 'read' | 'write' };
@@ -113,11 +129,25 @@ export async function authorizeGrant(
       grant.status === 'active' ? 'GRANT_EXPIRED' : `GRANT_${grant.status.toUpperCase()}`,
       grant,
     );
+  // Owner-approved grants stay valid only while the approver is still an active owner.
+  if (
+    !grant.emergency &&
+    !(
+      grant.approvedBy &&
+      (await BusinessMembership.exists({
+        businessId: grant.businessId,
+        userId: grant.approvedBy,
+        role: 'owner',
+        status: { $ne: 'disabled' },
+      }))
+    )
+  )
+    return deny('APPROVER_NOT_OWNER', grant);
   if (!grant.scopes.includes(need.scope)) return deny('SCOPE_NOT_GRANTED', grant);
   if (need.operation === 'write' && grant.mode !== 'write') return deny('READ_ONLY_GRANT', grant);
   if (
     (need.operation === 'write' || HIGH_RISK_SCOPES.includes(need.scope)) &&
-    !(await hasRecentReauth(actor))
+    !(await hasRecentReauth(actor, req.auth!.sessionId))
   )
     return deny('REAUTH_REQUIRED', grant);
   await logAccess({
