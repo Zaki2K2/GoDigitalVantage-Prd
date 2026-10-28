@@ -451,6 +451,21 @@
                     />
                     <span>{{ f.consent.marketingSms }}</span>
                   </label>
+                  @if (f.consent.whatsappFollowUp) {
+                    <label
+                      class="mb-2 flex items-start gap-3 text-theme-sm text-gray-700 dark:text-gray-300"
+                      [class.opacity-60]="!phone().trim()"
+                    >
+                      <input
+                        type="checkbox"
+                        class="mt-0.5 size-4 shrink-0"
+                        [checked]="whatsappFollowUp()"
+                        [disabled]="!phone().trim()"
+                        (change)="whatsappFollowUp.set(chk($event))"
+                      />
+                      <span>{{ f.consent.whatsappFollowUp }}</span>
+                    </label>
+                  }
                   <p class="hint muted mt-2 mb-0">
                     These boxes are optional and unticked. They only apply if you enter a mobile
                     number.

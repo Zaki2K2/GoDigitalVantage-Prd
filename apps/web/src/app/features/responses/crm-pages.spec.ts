@@ -297,10 +297,48 @@ describe('CRM views', () => {
         },
       });
       await settle(f);
+      // The drawer also loads WhatsApp follow-up history and capability for the owner.
+      http.expectOne((r) => r.url.endsWith('/followups')).flush({ data: [] });
+      http
+        .expectOne((r) => r.url.endsWith('/followups/config'))
+        .flush({ data: { whatsappApi: false } });
+      await settle(f);
       const text = el.querySelector('.detail')!.textContent!;
       expect(text).toContain('review request not granted');
       expect(text).toContain('promotions granted');
       expect(text).toContain('marketing_sms granted via public_form');
+    });
+
+    it('lets an owner add a contact and shows the server validation message', async () => {
+      const f = TestBed.createComponent(ContactsPage);
+      const el = f.nativeElement as HTMLElement;
+      f.detectChanges();
+      businesses();
+      http.expectOne((r) => r.url.endsWith('/contacts')).flush(page([]));
+      await settle(f);
+
+      el.querySelector<HTMLButtonElement>('header .btn')!.click();
+      await settle(f);
+      const phone = el.querySelector<HTMLInputElement>('#nc-phone')!;
+      phone.value = '5550100';
+      phone.dispatchEvent(new Event('input'));
+      el.querySelector<HTMLFormElement>('form[aria-label="Add contact"]')!.dispatchEvent(
+        new Event('submit'),
+      );
+      http
+        .expectOne((r) => r.method === 'POST' && r.url.endsWith('/contacts'))
+        .flush(
+          {
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request',
+              details: { phone: ['Enter a phone number with country code'] },
+            },
+          },
+          { status: 422, statusText: 'Unprocessable' },
+        );
+      await settle(f);
+      expect(el.textContent).toContain('Enter a phone number with country code');
     });
   });
 

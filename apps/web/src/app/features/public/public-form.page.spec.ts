@@ -210,7 +210,11 @@ describe('PublicFormPage', () => {
       email: '',
       phone: '+1 415 555 0123',
     });
-    expect(req.request.body.consent).toEqual({ reviewRequestSms: false, marketingSms: true });
+    expect(req.request.body.consent).toEqual({
+      reviewRequestSms: false,
+      marketingSms: true,
+      whatsappFollowUp: false,
+    });
     req.flush({ data: { responseId: 'x', duplicate: false, googleReviewUrl: null } });
   });
 

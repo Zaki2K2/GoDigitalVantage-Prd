@@ -69,3 +69,11 @@ Restricted Resend test mode is opt-in and independent of EMAIL_ENABLED. Only exa
 ## Campaign Management Engine
 
 M-CAMP (2026-10-20): tenant-bound platform campaigns; configuration-only templates; existing discount reward issuance/redemption and Resend provider; owner/member permission mapping; bounded bearer-triggered serverless worker; no TTL takeover for unknown external-send locks. Email only; no invented channels/events. See [campaigns](campaigns.md) for semantics, migration, operational reconciliation and limits.
+
+
+## WhatsApp follow-up
+
+M-FOLLOWUP (2026-10-28): manual owner-triggered feedback follow-up via the official WhatsApp Cloud API (free Meta test credentials) with a prefilled `wa.me` click-to-chat fallback. Nothing sends automatically. Eligibility = phone + an explicit text-message consent (reviewRequestSms or marketingSms) not superseded by a later STOP reply (`contacts.followUpOptOutAt`; any newer consent grant re-enables). Outside the 24h customer-reply window the configured template (default `hello_world`, usable on the test number) is sent instead of free text. Click-to-chat rows are `prepared`, never "sent": delivery cannot be known. Inbound replies are matched to the business that last messaged that number; unknown senders are ignored. Retention of `followups` bodies is undecided (owner/legal call). Secrets are API env vars only (`WHATSAPP_*`).
+
+
+Follow-up hardening (2026-10-28): follow-up now needs a separate `consent.whatsappFollowUp` (public form checkbox, purpose `whatsapp_followup`, wording v2); review-request/promo consent never authorises it. Outside the 24h window the API refuses with 409 `TEMPLATE_CONFIRMATION_REQUIRED {template}` unless the request carries `confirmTemplate` equal to it; the UI shows the template name and the unsent text and needs a click. Webhook routing: exact via `context.id`, else only if one business messaged the number in the last 7 days, else the text is stored nowhere; STOP opts the contact out in every business that messaged that number. `WHATSAPP_GRAPH_BASE_URL` (mock only; rejected in production). Browser E2E 22/22 on gdv_test with a local mock Graph; no real message sent.

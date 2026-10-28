@@ -1,7 +1,11 @@
 import { Schema, model, type Types } from 'mongoose';
 
 /** What a customer can agree to. Submitting feedback never implies either. */
-export const CONSENT_PURPOSES = ['review_request_sms', 'marketing_sms'] as const;
+export const CONSENT_PURPOSES = [
+  'review_request_sms',
+  'marketing_sms',
+  'whatsapp_followup',
+] as const;
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];
 
 export interface ContactDoc {
@@ -18,7 +22,14 @@ export interface ContactDoc {
   firstResponseAt: Date;
   lastResponseAt: Date;
   /** Latest grant time per purpose (null = never granted). Source of truth: consent_events. */
-  consent: { reviewRequestSms: Date | null; marketingSms: Date | null };
+  consent: {
+    reviewRequestSms: Date | null;
+    marketingSms: Date | null;
+    /** Separate, explicit permission for WhatsApp follow-up about this feedback. */
+    whatsappFollowUp?: Date | null;
+  };
+  /** Customer replied STOP to a WhatsApp follow-up. Cleared in effect by any later consent grant. */
+  followUpOptOutAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,7 +50,9 @@ const contactSchema = new Schema<ContactDoc>(
     consent: {
       reviewRequestSms: { type: Date, default: null },
       marketingSms: { type: Date, default: null },
+      whatsappFollowUp: { type: Date, default: null },
     },
+    followUpOptOutAt: { type: Date, default: null },
   },
   { timestamps: true, collection: 'contacts' },
 );

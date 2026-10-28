@@ -35,6 +35,7 @@ export const submissionSchema = z
       .object({
         reviewRequestSms: z.boolean().optional(),
         marketingSms: z.boolean().optional(),
+        whatsappFollowUp: z.boolean().optional(),
       })
       .strict()
       .optional(),

@@ -148,3 +148,10 @@ Read-only provider listing succeeds with the existing local key. Required mail.g
 Implemented default-deny customer data for Super Admin, owner-approved support grants, reauth, emergency review, append-only access log, UI restricted states. API vitest 287 passed / 6 failed (the same 6 date-dependent campaign tests that fail on main before these changes); web 201/201; lint, both builds, typecheck clean. Not committed or pushed. See [admin](admin.md).
 
 - Hardening pass (2026-10-28): session-bound reauth, owner approval for platform campaigns plus legacy audit tooling, retention/permission tooling, browser E2E on gdv_test (41/41, isolated API :3199 / web :4299), campaign tests stabilised with a frozen Date. See [admin](admin.md).
+
+
+- WhatsApp follow-up (2026-10-28): Cloud API + click-to-chat, dashboard panel in the contact drawer (`features/contacts/contact-followup.ts`), webhook, consent/STOP checks, history. API vitest 321/321, web 204/204, lint/build clean. Not committed. Real Meta delivery not exercised (no credentials here): only a stubbed `fetch` was tested. See [decisions](decisions.md).
+
+- Manual contact add (2026-10-28): `POST /businesses/:id/contacts` (owner, `contacts:manage`) + "Add contact" form on the Contacts page. Needs email or +country-code phone; duplicates in the same business return 409 `CONTACT_EXISTS`; no consent is recorded, so follow-up and promotions stay blocked until the customer grants it.
+
+- Follow-up review fixes (2026-10-28): WhatsApp-specific consent, template confirmation, multi-tenant webhook routing, browser-tested contact creation + click-to-chat + API send (22/22, mock Graph). Existing contacts have no WhatsApp consent, so follow-up stays off for them until they re-consent. See [decisions](decisions.md).

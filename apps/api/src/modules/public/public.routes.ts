@@ -26,6 +26,7 @@ export function createPublicRouter() {
           wordingVersion: CONSENT_WORDING_VERSION,
           reviewRequestSms: wording.review_request_sms,
           marketingSms: wording.marketing_sms,
+          whatsappFollowUp: wording.whatsapp_followup,
         },
       },
     });

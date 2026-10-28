@@ -61,6 +61,38 @@ export const envSchema = z
     INSTANT_REWARDS_TOKEN_SECRET: optionalSecret(32),
     RESEND_WEBHOOK_SECRET: optionalSecret(16),
     MARKETING_UNSUBSCRIBE_SECRET: optionalSecret(32),
+    // WhatsApp Cloud API (Meta). Free test credentials work; nothing sends unless a user clicks Send.
+    WHATSAPP_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    WHATSAPP_ACCESS_TOKEN: optionalSecret(1),
+    WHATSAPP_PHONE_NUMBER_ID: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z
+        .string()
+        .regex(/^\d{5,20}$/)
+        .optional(),
+    ),
+    WHATSAPP_APP_SECRET: optionalSecret(8),
+    WHATSAPP_VERIFY_TOKEN: optionalSecret(8),
+    // Override only for local mocks; production must use Meta's endpoint.
+    WHATSAPP_GRAPH_BASE_URL: z
+      .url()
+      .transform((v) => v.replace(/\/+$/, ''))
+      .default('https://graph.facebook.com'),
+    WHATSAPP_API_VERSION: z
+      .string()
+      .regex(/^v\d+\.\d+$/)
+      .default('v21.0'),
+    WHATSAPP_TEMPLATE_NAME: z
+      .string()
+      .regex(/^[a-z0-9_]{1,512}$/)
+      .default('hello_world'),
+    WHATSAPP_TEMPLATE_LANGUAGE: z
+      .string()
+      .regex(/^[a-z]{2}(_[A-Z]{2})?$/)
+      .default('en_US'),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PERFORMANCE_LOGGING: z
       .enum(['true', 'false'])
@@ -82,6 +114,27 @@ export const envSchema = z
     PUBLIC_SUBMIT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
     PUBLIC_SCAN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
   })
+  .refine(
+    (v) =>
+      v.NODE_ENV !== 'production' || v.WHATSAPP_GRAPH_BASE_URL === 'https://graph.facebook.com',
+    {
+      message: 'WHATSAPP_GRAPH_BASE_URL may only be overridden outside production',
+      path: ['WHATSAPP_GRAPH_BASE_URL'],
+    },
+  )
+  .refine(
+    (v) =>
+      !v.WHATSAPP_ENABLED ||
+      (v.WHATSAPP_ACCESS_TOKEN &&
+        v.WHATSAPP_PHONE_NUMBER_ID &&
+        v.WHATSAPP_APP_SECRET &&
+        v.WHATSAPP_VERIFY_TOKEN),
+    {
+      message:
+        'WHATSAPP_ENABLED needs WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN',
+      path: ['WHATSAPP_ENABLED'],
+    },
+  )
   .refine((value) => value.PUBLIC_APP_BASE_URL || value.PUBLIC_BASE_URL, {
     message: 'Set PUBLIC_APP_BASE_URL (or legacy PUBLIC_BASE_URL)',
     path: ['PUBLIC_APP_BASE_URL'],

@@ -3,13 +3,20 @@ import { requireAuth } from '../../middleware/require-auth';
 import { requireBusinessAccess } from '../../middleware/require-business-access';
 import { dashboardQuery, getDashboard } from '../analytics/dashboard.service';
 import { findMembership } from '../businesses/business.service';
-import { getContact, listContacts, listContactsQuery } from '../contacts/contact.service';
+import { assertBusinessPermission } from '../../middleware/business-permissions';
+import {
+  createContact,
+  createContactBody,
+  getContact,
+  listContacts,
+  listContactsQuery,
+} from '../contacts/contact.service';
 import { listResponsesQuery } from './response.schemas';
 import { getResponse, listResponses } from './response.service';
 
 /**
- * Read-only portal views over responses, contacts and the dashboard. Deliberately GET-only:
- * responses are immutable and contacts are only created by public submissions.
+ * Portal views over responses, contacts and the dashboard. Responses are immutable (GET-only);
+ * contacts come from public submissions or are added manually by an owner.
  */
 export function createCrmRouter() {
   const router = Router();
@@ -28,6 +35,13 @@ export function createCrmRouter() {
   router.get('/businesses/:businessId/contacts', ...access, async (req, res) => {
     const q = listContactsQuery.parse(req.query);
     res.json(await listContacts(req.tenant!.businessId, q));
+  });
+
+  router.post('/businesses/:businessId/contacts', ...access, async (req, res) => {
+    assertBusinessPermission(req.tenant!.role, 'contacts:manage');
+    res.status(201).json({
+      data: await createContact(req.tenant!.businessId, createContactBody.parse(req.body)),
+    });
   });
 
   router.get('/businesses/:businessId/contacts/:contactId', ...access, async (req, res) => {

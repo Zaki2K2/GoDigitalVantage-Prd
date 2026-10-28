@@ -68,7 +68,12 @@ export interface PublicForm {
     logoUrl?: string | null;
   };
   questionnaire: QuestionnaireContent & { version: number; publishedAt: string };
-  consent: { wordingVersion: string; reviewRequestSms: string; marketingSms: string };
+  consent: {
+    wordingVersion: string;
+    reviewRequestSms: string;
+    marketingSms: string;
+    whatsappFollowUp?: string;
+  };
 }
 
 export interface QrInfo {
