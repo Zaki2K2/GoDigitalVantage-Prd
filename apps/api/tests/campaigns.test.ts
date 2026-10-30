@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import mongoose from 'mongoose';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app';
+import { AdminReauth, SupportGrant } from '../src/modules/admin/support.model';
+import { activeGrant } from './support-helpers';
+import { reviewPlatformCampaigns } from '../src/modules/campaigns/campaign.legacy-audit';
 import { User } from '../src/modules/auth/user.model';
 import { Business } from '../src/modules/businesses/business.model';
 import { BusinessMembership } from '../src/modules/businesses/membership.model';
@@ -33,7 +36,7 @@ import {
   profileSchema,
 } from '../src/modules/campaigns/campaign.domain';
 import { estimateAudience } from '../src/modules/campaigns/campaign.audience';
-import { createCampaign } from '../src/modules/campaigns/campaign.service';
+import { createCampaign, updateCampaign } from '../src/modules/campaigns/campaign.service';
 import { executeCampaign } from '../src/modules/campaigns/campaign.execution';
 import {
   migrateCampaignIndexes,
@@ -124,6 +127,8 @@ describe('campaign trigger rules', () => {
 describe('campaign API and execution', () => {
   const app = createApp();
   const models = [
+    SupportGrant,
+    AdminReauth,
     Campaign,
     CampaignExecution,
     CampaignRecipient,
@@ -170,6 +175,16 @@ describe('campaign API and execution', () => {
       throw new Error('Test database required');
     await mongoose.connect(process.env['MONGODB_URI']!);
     await Promise.all(models.map((m) => m.init()));
+  });
+  // Fixtures are written against the fixed instant `now`. Freeze only Date (timers stay real so
+  // database I/O is unaffected) so reward expiry, campaign end dates and token lifetimes are
+  // evaluated at that instant instead of drifting with the wall clock.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(now);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
   });
   beforeEach(async () => {
     await Promise.all(models.map((m) => (m as typeof User).deleteMany({})));
@@ -278,6 +293,13 @@ describe('campaign API and execution', () => {
   it('allows Super Admin inspection and scoped platform creation without tenant bypass', async () => {
     expect((await owner.agent.get('/api/v1/admin/campaigns')).status).toBe(403);
     await User.updateOne({ _id: other.id }, { $set: { platformRole: 'SUPER_ADMIN' } });
+    expect(
+      (await other.post('/api/v1/admin/campaigns', { input: input(), businessId })).status,
+    ).toBe(403);
+    await activeGrant(other.id, businessId, ['campaigns'], 'write');
+    expect(
+      (await other.post('/api/v1/admin/reauth', { password: 'correct-horse-battery' })).status,
+    ).toBe(200);
     const r = await other.post('/api/v1/admin/campaigns', { input: input(), businessId });
     expect(r.status).toBe(201);
     expect(r.body.data.ownerType).toBe('platform');
@@ -292,11 +314,17 @@ describe('campaign API and execution', () => {
     const t = await other.post('/api/v1/admin/campaigns/templates', input());
     expect(t.status).toBe(201);
     const url = `/api/v1/admin/campaigns/templates/${t.body.data._id}/assign`;
+    await activeGrant(other.id, businessId, ['campaigns'], 'write');
+    expect(
+      (await other.post('/api/v1/admin/reauth', { password: 'correct-horse-battery' })).status,
+    ).toBe(200);
+    // Bulk assignment only reaches businesses that approved write access.
     const r = await other.post(url, { all: true });
     expect(r.status).toBe(201);
-    expect(r.body.data).toHaveLength(2);
+    expect(r.body.data).toHaveLength(1);
+    expect((await other.post(url, { businessIds: [otherBusinessId] })).status).toBe(403);
     expect((await other.post(url, { businessIds: [businessId] })).status).toBe(201);
-    expect(await Campaign.countDocuments()).toBe(2);
+    expect(await Campaign.countDocuments()).toBe(1);
   });
   it('scopes selected contacts and segmentation to one tenant', async () => {
     const a = await contact({ tags: ['vip'], segment: 'local', loyaltyLevel: 'gold' });
@@ -819,5 +847,119 @@ describe('campaign API and execution', () => {
     await executeCampaign(String(c._id), { send }, new Date(+now + 60000));
     expect(send).toHaveBeenCalledTimes(2);
     expect(await CampaignRecipient.countDocuments({ status: 'skipped' })).toBe(2);
+  });
+
+  describe('platform campaigns and tenant customers', () => {
+    async function platformCampaign() {
+      await User.updateOne({ _id: other.id }, { $set: { platformRole: 'SUPER_ADMIN' } });
+      const c = await createCampaign(campaignInput.parse(input()), businessId, other.id, true);
+      await Campaign.updateOne({ _id: c._id }, { $set: { status: 'active' } });
+      return c;
+    }
+    const sender = () => vi.fn(async () => ({ id: randomUUID() }));
+    const run = (id: unknown, send: ReturnType<typeof sender>) =>
+      executeCampaign(String(id), { send }, new Date(+now + 60000));
+
+    it('never delivers a legacy platform campaign without owner approval', async () => {
+      await contact();
+      const c = await platformCampaign();
+      await Campaign.collection.updateOne({ _id: c._id }, { $unset: { ownerApproval: '' } });
+      const send = sender();
+      expect((await run(c._id, send)).processed).toBe(0);
+      expect(send).not.toHaveBeenCalled();
+      expect(await CampaignRecipient.countDocuments()).toBe(0);
+    });
+
+    it('does not treat a support grant as permission to market to customers', async () => {
+      await contact();
+      const c = await platformCampaign();
+      await activeGrant(other.id, businessId, ['campaigns', 'contacts'], 'write');
+      const send = sender();
+      await run(c._id, send);
+      expect(send).not.toHaveBeenCalled();
+      const activate = await other.post(`/api/v1/admin/campaigns/${c._id}/schedule`, {
+        confirm: true,
+        revision: 0,
+        confirmedCount: 1,
+      });
+      expect([403, 409]).toContain(activate.status);
+    });
+
+    it('sends only after the owner approves, respects consent and stops on revocation', async () => {
+      await contact();
+      await contact({}, false);
+      const suppressed = await contact();
+      await MarketingSuppression.create({
+        businessId,
+        email: suppressed.emailLowercase!,
+        reason: 'unsubscribe',
+        at: now,
+      });
+      const c = await platformCampaign();
+      const url = `${base}/${c._id}/owner-approval`;
+      expect((await staff.post(url, { decision: 'approve', confirm: true })).status).toBe(403);
+      expect((await other.post(url, { decision: 'approve', confirm: true })).status).toBe(403);
+      expect((await owner.post(url, { decision: 'approve' })).status).toBe(422);
+      expect((await owner.post(url, { decision: 'approve', confirm: true })).status).toBe(200);
+      const send = sender();
+      await run(c._id, send);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect((await owner.post(url, { decision: 'reject', confirm: true })).status).toBe(200);
+      const after = sender();
+      await executeCampaign(String(c._id), { send: after }, new Date(+now + 24 * 3600000));
+      expect(after).not.toHaveBeenCalled();
+    });
+
+    it('voids approval when platform staff edit the draft and forbids hand-picked audiences', async () => {
+      const c = await createCampaign(campaignInput.parse(input()), businessId, other.id, true);
+      await Campaign.updateOne({ _id: c._id }, { $set: { ownerApproval: { status: 'approved' } } });
+      await updateCampaign(
+        (await Campaign.findById(c._id).lean())!,
+        campaignInput.parse(input({ name: 'Changed' })),
+        other.id,
+        0,
+      );
+      expect((await Campaign.findById(c._id).lean())?.ownerApproval ?? null).toBeNull();
+      await expect(
+        createCampaign(
+          campaignInput.parse(input({ audience: { type: 'selected', contactIds: [businessId] } })),
+          businessId,
+          other.id,
+          true,
+        ),
+      ).rejects.toMatchObject({ code: 'AUDIENCE_NOT_ALLOWED' });
+    });
+
+    it('reports legacy campaigns for owner review without exposing recipient data', async () => {
+      const kept = await contact();
+      const c = await platformCampaign();
+      await Campaign.collection.updateOne({ _id: c._id }, { $unset: { ownerApproval: '' } });
+      await CampaignRecipient.create({
+        campaignId: c._id,
+        businessId,
+        executionId: new mongoose.Types.ObjectId(),
+        contactId: kept._id,
+        window: '2026-10-19',
+        dedupeKey: 'legacy-1',
+        status: 'pending',
+        startedAt: now,
+        email: kept.emailLowercase,
+      });
+      await MarketingConsent.updateOne({ contactId: kept._id }, { state: 'revoked' });
+      const rows = await reviewPlatformCampaigns();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        ownerApproval: 'missing',
+        deliveryBlocked: true,
+        needsOwnerReview: true,
+        unsentRecipients: 1,
+      });
+      expect(JSON.stringify(rows)).not.toContain('customer-');
+      expect(rows[0]!.reasons.join(' ')).toMatch(/owner approval/i);
+      const api = await other.agent.get('/api/v1/admin/campaigns/owner-review');
+      expect(api.status).toBe(200);
+      expect(api.body.data).toHaveLength(1);
+      expect((await owner.agent.get('/api/v1/admin/campaigns/owner-review')).status).toBe(403);
+    });
   });
 });

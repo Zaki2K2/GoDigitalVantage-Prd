@@ -48,3 +48,6 @@ M-CAMP adds campaigns, campaign_executions, campaign_recipients, campaign_locks,
 ## Profile image and business logo (2026-10-20)
 
 New collection `profile_images` (module `modules/images`): one document per `{ownerType: user|business, ownerId}` (unique index) with `contentType`, `data` (Buffer, <=512 KB, client-resized) and `size`. New nullable `users.avatarUpdatedAt` and `businesses.logoUpdatedAt` mark presence and version the URL; missing fields mean "no image", so existing documents need no migration. Legacy `businesses.logoRef` is untouched and unused by the UI. Vercel has no writable disk and no object store exists, hence MongoDB.
+
+
+`followups` (modules/followups): outbound/inbound WhatsApp follow-ups per `{businessId, contactId}` with channel, status (prepared|sent|delivered|read|failed|received), `providerMessageId` (unique partial index, makes webhook retries idempotent), `phoneDigits` (inbound matching), `sentBy`. New optional `contacts.followUpOptOutAt`; missing = not opted out, no migration.

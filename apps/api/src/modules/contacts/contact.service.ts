@@ -1,15 +1,17 @@
 import { Types, type QueryFilter } from 'mongoose';
 import { z } from 'zod';
 import { escapeRegex, OBJECT_ID, pageMeta, paginationQuery } from '../../shared/pagination';
-import { notFound } from '../../shared/errors';
+import { AppError, notFound } from '../../shared/errors';
+import { normalizeEmail, normalizePhone } from './normalize';
 import { Response } from '../responses/response.model';
 import { MarketingConsent } from '../campaigns/campaign.marketing';
 import { ConsentEvent, Contact, type ConsentPurpose, type ContactDoc } from './contact.model';
 
 /** Wording shown to the customer and snapshotted on every grant. Bump the version on any change. */
-export const CONSENT_WORDING_VERSION = '2026-10-v1';
+export const CONSENT_WORDING_VERSION = '2026-10-v2';
 export const consentWording = (businessName: string): Record<ConsentPurpose, string> => ({
   review_request_sms: `Text me a link to leave a Google review for ${businessName}. (Optional)`,
+  whatsapp_followup: `Contact me on WhatsApp about the feedback I am sharing with ${businessName}. Reply STOP to opt out. (Optional)`,
   marketing_sms: `Send me occasional promotional text messages from ${businessName}. Message and data rates may apply; reply STOP to opt out. (Optional)`,
 });
 
@@ -102,7 +104,11 @@ export async function recordConsent(
     }
   }
   const field = (p: ConsentPurpose) =>
-    p === 'review_request_sms' ? 'consent.reviewRequestSms' : 'consent.marketingSms';
+    p === 'review_request_sms'
+      ? 'consent.reviewRequestSms'
+      : p === 'whatsapp_followup'
+        ? 'consent.whatsappFollowUp'
+        : 'consent.marketingSms';
   await Contact.updateOne(
     { _id: contactId, businessId },
     {
@@ -138,6 +144,7 @@ const contactDto = (c: ContactDoc, responseCount: number) => ({
   consent: {
     reviewRequestSms: c.consent?.reviewRequestSms ?? null,
     marketingSms: c.consent?.marketingSms ?? null,
+    whatsappFollowUp: c.consent?.whatsappFollowUp ?? null,
   },
 });
 
@@ -211,4 +218,54 @@ export async function getContact(businessId: string, contactId: string) {
       capturedAt: e.capturedAt,
     })),
   };
+}
+
+export const createContactBody = z
+  .object({
+    fullName: z.string().trim().max(120).optional(),
+    email: z.string().trim().max(254).optional(),
+    phone: z.string().trim().max(32).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (!v.email && !v.phone)
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Enter an email or a phone number',
+        path: ['email'],
+      });
+    if (v.email && !normalizeEmail(v.email))
+      ctx.addIssue({ code: 'custom', message: 'Enter a valid email address', path: ['email'] });
+    if (v.phone && !normalizePhone(v.phone))
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Enter a phone number with country code, e.g. +14155550123',
+        path: ['phone'],
+      });
+  });
+
+/**
+ * Owner-added contact. It carries no consent: text or promotional messaging stays blocked until
+ * the customer grants permission themselves. Never merges into or edits an existing contact.
+ */
+export async function createContact(businessId: string, input: z.infer<typeof createContactBody>) {
+  const now = new Date();
+  try {
+    const c = await Contact.create({
+      businessId,
+      fullName: input.fullName || null,
+      emailLowercase: input.email ? normalizeEmail(input.email) : null,
+      phoneE164: input.phone ? normalizePhone(input.phone) : null,
+      firstResponseAt: now,
+      lastResponseAt: now,
+    });
+    return contactDto(c.toObject(), 0);
+  } catch (err) {
+    if (isDuplicateKey(err))
+      throw new AppError(
+        409,
+        'CONTACT_EXISTS',
+        'A contact with this email or phone already exists',
+      );
+    throw err;
+  }
 }

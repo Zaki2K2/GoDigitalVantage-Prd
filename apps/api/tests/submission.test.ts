@@ -319,6 +319,63 @@ describe('contacts and consent', () => {
     expect(r.consentSnapshot).toMatchObject({ reviewRequestSms: false, marketingSms: false });
   });
 
+  it('records WhatsApp follow-up permission on its own, never implied by other permissions', async () => {
+    const w = await newWorld();
+    await submit(
+      app,
+      w.slug,
+      body(w, {
+        contact: { phone: '0014155550123' },
+        consent: { reviewRequestSms: true, marketingSms: true },
+      }),
+    );
+    let c = (await Contact.findOne().lean())!;
+    expect(c.consent.whatsappFollowUp ?? null).toBeNull();
+    await submit(
+      app,
+      w.slug,
+      body(w, {
+        contact: { phone: '0014155550123' },
+        consent: { whatsappFollowUp: true },
+      }),
+    );
+    c = (await Contact.findOne().lean())!;
+    expect(c.consent.whatsappFollowUp).toBeInstanceOf(Date);
+    const ev = await ConsentEvent.findOne({ purpose: 'whatsapp_followup' }).lean();
+    expect(ev).toMatchObject({ choice: 'granted', source: 'public_form' });
+    expect(ev!.wordingText).toContain('WhatsApp');
+  });
+
+  it('saves WhatsApp permission to the existing contact matched by normalised phone, within that business only', async () => {
+    const w = await newWorld();
+    const other = await newWorld('Other Cafe');
+    const mk = (businessId: string) =>
+      Contact.create({
+        businessId: new mongoose.Types.ObjectId(businessId),
+        fullName: 'Added by owner',
+        phoneE164: '+14155550123',
+        firstResponseAt: new Date(),
+        lastResponseAt: new Date(),
+      });
+    const mine = await mk(w.businessId);
+    const theirs = await mk(other.businessId);
+    await submit(
+      app,
+      w.slug,
+      body(w, {
+        contact: { phone: '+1 (415) 555-0123' },
+        consent: { whatsappFollowUp: true },
+      }),
+    );
+    expect(await Contact.countDocuments({ businessId: mine.businessId })).toBe(1);
+    expect((await Contact.findById(mine._id).lean())!.consent.whatsappFollowUp).toBeInstanceOf(
+      Date,
+    );
+    expect(
+      (await Contact.findById(theirs._id).lean())!.consent.whatsappFollowUp ?? null,
+    ).toBeNull();
+  });
+
   it('records explicit consent separately, with purpose, wording version and source', async () => {
     const w = await newWorld();
     await submit(

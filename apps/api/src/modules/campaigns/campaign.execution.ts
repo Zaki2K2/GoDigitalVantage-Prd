@@ -15,7 +15,7 @@ import { campaignIndexesReady } from './campaign.migration';
 import { Campaign, CampaignExecution, CampaignRecipient } from './campaign.model';
 import { executionWindow, occasionDate } from './campaign.domain';
 import { audienceFilter, interactionEligible } from './campaign.audience';
-import { campaignAudit, getCampaign, withCampaignLock } from './campaign.service';
+import { campaignAudit, getCampaign, ownerApproved, withCampaignLock } from './campaign.service';
 
 export interface CampaignDeliveryProvider {
   send(message: EmailMessage): Promise<{ id: string }>;
@@ -63,6 +63,8 @@ export async function executeCampaign(
       }).lean();
       const actor = await User.findOne({ _id: c.createdBy, status: 'active' }).lean();
       if (!business || !actor) return { processed: 0 };
+      // Legacy platform campaigns have no approval record and therefore never send.
+      if (!ownerApproved(c)) return { processed: 0 };
       if (
         c.ownerType === 'platform'
           ? actor.platformRole !== 'SUPER_ADMIN'
@@ -110,8 +112,19 @@ export async function executeCampaign(
           })
             .sort({ _id: 1 })
             .limit(3);
+          const stillApproved = async () =>
+            c.ownerType !== 'platform' ||
+            Boolean(
+              await Campaign.exists({
+                _id: c._id,
+                status: { $in: ['active', 'scheduled'] },
+                'ownerApproval.status': 'approved',
+              }),
+            );
           const deliver = async (r: (typeof retry)[number]) => {
             if (Date.now() > deadline - 10000) return;
+            // Owner revocation takes effect before the next recipient; the row stays pending.
+            if (!(await stillApproved())) return;
             if (+now - +r.startedAt > 19 * 3600000) {
               r.status = 'reconciliation';
               r.error = 'Provider retry window elapsed';
@@ -229,6 +242,7 @@ export async function executeCampaign(
               await r.save();
               return;
             }
+            if (!(await stillApproved())) return;
             if (!r.unsubscribeUrl) {
               r.status = 'reconciliation';
               r.error = 'Legacy promotional payload lacks unsubscribe link';

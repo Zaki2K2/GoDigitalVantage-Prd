@@ -24,6 +24,7 @@ import { DialogFocus } from '../../shared/dialog-focus';
 import { Icon } from '../../shared/icon';
 import { RecordDetails } from '../../shared/record-details';
 import { AdminDashboard } from './admin-dashboard';
+import { SupportAccess } from './support-access';
 import { AdminApi, AdminRecord, AdminResult } from './admin.api';
 
 const SECTIONS = [
@@ -35,16 +36,16 @@ const SECTIONS = [
   'contacts',
   'promotions',
   'activity',
+  'support',
   'system',
   'search',
 ];
+/** Tenant customer data: platform administration shows an explanation, never records. */
+const RESTRICTED = ['responses', 'contacts', 'promotions'];
 const COLUMNS: Record<string, string[]> = {
   businesses: ['name', 'owner', 'status', 'memberCount', 'formCount', 'responseCount', 'createdAt'],
   users: ['fullName', 'emailLowercase', 'status', 'platformRole', 'businessCount', 'createdAt'],
   forms: ['draft.title', 'businessName', 'publishedVersion', 'responseCount', 'updatedAt'],
-  responses: ['businessName', 'rating', 'questionnaireVersion', 'submittedAt'],
-  contacts: ['fullName', 'emailLowercase', 'phoneE164', 'businessName', 'lastResponseAt'],
-  promotions: ['code', 'businessName', 'status', 'discountValue', 'expiresAt'],
   activity: ['action', 'actorName', 'entity', 'outcome', 'at'],
   members: ['user', 'role', 'status', 'createdAt'],
   memberships: ['business', 'role', 'status', 'createdAt'],
@@ -64,6 +65,7 @@ interface PendingAction {
     Avatar,
     AppSelect,
     AdminDashboard,
+    SupportAccess,
     DatePipe,
     RouterLink,
     FormsModule,
@@ -125,20 +127,11 @@ export class AdminPage {
   protected readonly activeResource = computed(() =>
     this.id() && this.tab() !== 'overview' ? this.tab() : this.section(),
   );
+  protected readonly restricted = computed(() => RESTRICTED.includes(this.section()));
   protected readonly columns = computed(() => COLUMNS[this.activeResource()] ?? []);
   protected readonly tabs = computed(() =>
     this.section() === 'businesses'
-      ? [
-          'overview',
-          'members',
-          'forms',
-          'responses',
-          'contacts',
-          'promotions',
-          'qr',
-          'activity',
-          'settings',
-        ]
+      ? ['overview', 'members', 'forms', 'customer-data', 'qr', 'activity', 'settings']
       : this.section() === 'forms'
         ? ['overview', 'preview', 'versions']
         : this.section() === 'users'
@@ -151,7 +144,6 @@ export class AdminPage {
         businesses: ['active', 'onboarding', 'disabled', 'suspended', 'archived'],
         users: ['active', 'disabled'],
         forms: ['draft', 'published', 'archived'],
-        promotions: ['pending_approval', 'issued', 'redeemed', 'expired', 'cancelled', 'rejected'],
       })[this.activeResource()] ?? [],
   );
   protected readonly recordTitle = computed(() => {
@@ -411,7 +403,14 @@ export class AdminPage {
       this.loading.set(false);
       return;
     }
-    if (id && (tab === 'overview' || tab === 'settings' || tab === 'preview')) {
+    if (RESTRICTED.includes(section) || section === 'support') {
+      this.loading.set(false);
+      return;
+    }
+    if (
+      id &&
+      (tab === 'overview' || tab === 'settings' || tab === 'preview' || tab === 'customer-data')
+    ) {
       this.loading.set(false);
       return;
     }
@@ -537,18 +536,8 @@ export class AdminPage {
     this.pending.set({
       title: `${this.label(action)} form`,
       description:
-        'Publishing creates an immutable version using the current draft revision. Archiving hides public forms while keeping all versions and responses. Restoring makes the existing published version available again.',
+        'Archiving hides public forms while keeping all versions and responses. Restoring makes the existing published version available again. Publishing changes business-owned content and needs business-approved support access.',
       path: `forms/${this.id()}/${action}`,
-      body: {
-        confirm: true,
-        ...(action === 'publish' ? { expectedRevision: this.record()?.['draftRevision'] } : {}),
-      },
-    });
-  }
-  protected promotionAction(action: string): void {
-    this.pending.set({
-      title: `${this.label(action)} promotion`,
-      path: `promotions/${this.id()}/${action}`,
       body: { confirm: true },
     });
   }

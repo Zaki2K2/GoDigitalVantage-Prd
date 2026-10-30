@@ -75,6 +75,7 @@ export class PublicFormPage implements OnChanges {
   protected readonly phone = signal('');
   protected readonly reviewSms = signal(false);
   protected readonly marketingSms = signal(false);
+  protected readonly whatsappFollowUp = signal(false);
   protected readonly honeypot = signal('');
   protected readonly stars = [1, 2, 3, 4, 5];
   protected readonly progress = computed(() => {
@@ -107,6 +108,7 @@ export class PublicFormPage implements OnChanges {
     this.phone.set('');
     this.reviewSms.set(false);
     this.marketingSms.set(false);
+    this.whatsappFollowUp.set(false);
     this.honeypot.set('');
     this.submitting.set(false);
     this.idempotencyKey = requestId();
@@ -212,6 +214,7 @@ export class PublicFormPage implements OnChanges {
       // Text-message permission only makes sense with a number.
       this.reviewSms.set(false);
       this.marketingSms.set(false);
+      this.whatsappFollowUp.set(false);
     }
     this.clear('contact.phone');
     this.clear('contact');
@@ -253,7 +256,11 @@ export class PublicFormPage implements OnChanges {
     const name = this.name().trim();
     if (phone || email || name) {
       body.contact = { fullName: name, email, phone };
-      body.consent = { reviewRequestSms: this.reviewSms(), marketingSms: this.marketingSms() };
+      body.consent = {
+        reviewRequestSms: this.reviewSms(),
+        marketingSms: this.marketingSms(),
+        whatsappFollowUp: this.whatsappFollowUp(),
+      };
     }
 
     this.submitting.set(true);
@@ -310,7 +317,7 @@ export class PublicFormPage implements OnChanges {
     if (this.name().trim() && !email && !phone) {
       errors['contact'] = 'Add an email or phone number, or clear your name to stay anonymous';
     }
-    if ((this.reviewSms() || this.marketingSms()) && !phone) {
+    if ((this.reviewSms() || this.marketingSms() || this.whatsappFollowUp()) && !phone) {
       errors['consent'] = 'Text message permission needs a phone number';
     }
     return { errors, answers };

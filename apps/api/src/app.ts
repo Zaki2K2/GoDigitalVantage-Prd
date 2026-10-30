@@ -7,7 +7,9 @@ import {
   createInstantRewardWebhook,
 } from './modules/instant-rewards/instant-reward.routes';
 import { createImageRouter, createPublicImageRouter } from './modules/images/image.routes';
+import { createFollowUpRouter, createWhatsAppWebhook } from './modules/followups/followup.routes';
 import { createAdminRouter } from './modules/admin/admin.routes';
+import { createSupportOwnerRouter } from './modules/admin/support.routes';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -39,6 +41,7 @@ export function createApp(rewards = new InstantRewardsService()) {
     }),
   );
   app.use(createInstantRewardWebhook(rewards));
+  app.use(createWhatsAppWebhook());
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
 
@@ -55,10 +58,12 @@ export function createApp(rewards = new InstantRewardsService()) {
     // Campaign routes own their guards; handle them before the broad /admin middleware.
     createCampaignRouter(),
     createAdminRouter(),
+    createSupportOwnerRouter(),
     createBusinessRouter(),
     createQuestionnaireRouter(),
     createQrRouter(),
     createCrmRouter(),
+    createFollowUpRouter(),
     createRewardRouter(),
   );
 

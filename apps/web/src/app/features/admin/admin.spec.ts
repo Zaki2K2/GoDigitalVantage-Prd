@@ -181,16 +181,29 @@ describe('platform admin UI', () => {
     f.detectChanges();
     expect((f.nativeElement as HTMLElement).querySelector('[role="dialog"]')).toBeNull();
   });
-  it('loads a business detail tab in the selected tenant scope', () => {
+  it('shows only aggregate customer data on the business customer-data tab', () => {
     params.next(convertToParamMap({ section: 'businesses', id: B }));
-    query.next(convertToParamMap({ tab: 'responses' }));
+    query.next(convertToParamMap({ tab: 'customer-data' }));
     const f = create();
-    http.expectOne(`/api/v1/admin/businesses/${B}`).flush({ data: { _id: B, name: 'Alpha' } });
-    const r = http.expectOne((r) => r.url === '/api/v1/admin/responses');
-    expect(r.request.params.get('businessId')).toBe(B);
-    r.flush(response([]));
+    http.expectOne(`/api/v1/admin/businesses/${B}`).flush({
+      data: { _id: B, name: 'Alpha', counts: { responses: 7, contacts: 3, rewards: 2 } },
+    });
+    http.expectNone((r) => /\/admin\/(responses|contacts|promotions)/.test(r.url));
     f.detectChanges();
-    expect(text(f)).toContain('No results');
+    expect(text(f)).toContain('private to this business');
+    expect(text(f)).toContain('7');
+    expect(f.nativeElement.querySelector('table')).toBeNull();
+  });
+  it('explains restricted sections without requesting any customer records', () => {
+    for (const section of ['responses', 'contacts', 'promotions']) {
+      params.next(convertToParamMap({ section }));
+      const f = create();
+      http.expectNone((r) => r.url.includes('/admin/'));
+      f.detectChanges();
+      expect(text(f)).toContain('Customer data is private to each business');
+      expect(f.nativeElement.querySelector('table')).toBeNull();
+      f.destroy();
+    }
   });
   it('updates the URL when changing detail tabs', () => {
     params.next(convertToParamMap({ section: 'businesses', id: B }));

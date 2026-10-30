@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ContactCampaignProfile } from '../campaigns/contact-campaign-profile';
+import { ContactFollowUp } from './contact-followup';
 import { Component, DestroyRef, HostListener, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
@@ -17,7 +18,7 @@ import {
 /** Customers who chose to share an email or phone. Anonymous responses never appear here. */
 @Component({
   selector: 'app-contacts-page',
-  imports: [DatePipe, Icon, DialogFocus, ContactCampaignProfile],
+  imports: [DatePipe, Icon, DialogFocus, ContactCampaignProfile, ContactFollowUp],
   template: `
     <main class="page">
       <header class="page-header">
@@ -29,10 +30,68 @@ import {
             separately and is never assumed from a submission.
           </p>
         </div>
-        @if (pagination(); as p) {
-          <span class="badge brand">{{ p.total }} total</span>
-        }
+        <div class="flex items-center gap-3">
+          @if (pagination(); as p) {
+            <span class="badge brand">{{ p.total }} total</span>
+          }
+          @if (business?.role === 'owner') {
+            <button type="button" class="btn" (click)="adding.set(!adding())">Add contact</button>
+          }
+        </div>
       </header>
+
+      @if (adding()) {
+        <form
+          class="card toolbar"
+          (submit)="$event.preventDefault(); create()"
+          aria-label="Add contact"
+        >
+          <div class="field grow">
+            <label for="nc-name">Name (optional)</label>
+            <input
+              id="nc-name"
+              maxlength="120"
+              [value]="newName()"
+              (input)="newName.set(val($event))"
+            />
+          </div>
+          <div class="field grow">
+            <label for="nc-email">Email</label>
+            <input
+              id="nc-email"
+              type="email"
+              [value]="newEmail()"
+              (input)="newEmail.set(val($event))"
+            />
+          </div>
+          <div class="field grow">
+            <label for="nc-phone">Phone (with country code)</label>
+            <input
+              id="nc-phone"
+              type="tel"
+              placeholder="+14155550123"
+              [value]="newPhone()"
+              (input)="newPhone.set(val($event))"
+            />
+          </div>
+          <div class="field btns">
+            <button
+              type="submit"
+              class="btn"
+              [disabled]="saving() || (!newEmail().trim() && !newPhone().trim())"
+            >
+              Save contact
+            </button>
+          </div>
+          <p class="muted w-full">
+            Enter an email or a phone number. Added contacts have no text or promotional permission
+            until the customer gives it.
+          </p>
+          @if (addError(); as message) {
+            <div class="alert w-full" role="alert">{{ message }}</div>
+          }
+        </form>
+      }
 
       @if (error(); as message) {
         <div class="alert" role="alert">
@@ -164,6 +223,11 @@ import {
               d.contact.consent.reviewRequestSms
                 ? 'granted ' + (d.contact.consent.reviewRequestSms | date: 'mediumDate')
                 : 'not granted'
+            }}; WhatsApp follow-up
+            {{
+              d.contact.consent.whatsappFollowUp
+                ? 'granted ' + (d.contact.consent.whatsappFollowUp | date: 'mediumDate')
+                : 'not granted'
             }}; promotions
             {{
               d.contact.consent.marketingSms
@@ -178,6 +242,11 @@ import {
               [marketingEmail]="d.marketingEmail ?? null"
             />
           }
+          <app-contact-followup
+            [businessId]="business!.id"
+            [contact]="d.contact"
+            [canSend]="business?.role === 'owner'"
+          />
           <h3>Consent history</h3>
           @if (d.consentEvents.length === 0) {
             <p class="muted">No permission recorded.</p>
@@ -219,6 +288,12 @@ export class ContactsPage {
   protected readonly error = signal<string | null>(null);
   protected readonly detailError = signal<string | null>(null);
   protected readonly detailLoading = signal(false);
+  protected readonly adding = signal(false);
+  protected readonly saving = signal(false);
+  protected readonly addError = signal<string | null>(null);
+  protected readonly newName = signal('');
+  protected readonly newEmail = signal('');
+  protected readonly newPhone = signal('');
 
   constructor() {
     inject(BusinessApi)
@@ -244,6 +319,40 @@ export class ContactsPage {
     this.applied.set(this.search().trim());
     this.page = 1;
     this.load();
+  }
+
+  protected create(): void {
+    if (!this.business) return;
+    this.saving.set(true);
+    this.addError.set(null);
+    this.api
+      .createContact(this.business.id, {
+        fullName: this.newName().trim() || undefined,
+        email: this.newEmail().trim() || undefined,
+        phone: this.newPhone().trim() || undefined,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (c) => {
+          this.saving.set(false);
+          this.adding.set(false);
+          this.newName.set('');
+          this.newEmail.set('');
+          this.newPhone.set('');
+          this.search.set('');
+          this.applied.set('');
+          this.page = 1;
+          this.load();
+          this.open(c.id);
+        },
+        error: (err: unknown) => {
+          this.saving.set(false);
+          const details = (err as { error?: { error?: { details?: Record<string, string[]> } } })
+            ?.error?.error?.details;
+          const first = details ? Object.values(details).flat()[0] : undefined;
+          this.addError.set(first ?? apiErrorMessage(err));
+        },
+      });
   }
 
   protected clear(): void {

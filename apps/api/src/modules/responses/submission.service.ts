@@ -132,6 +132,7 @@ export function validateSubmission(form: ContentData, input: SubmissionInput): V
   const grants: ConsentPurpose[] = [];
   if (input.consent?.reviewRequestSms === true) grants.push('review_request_sms');
   if (input.consent?.marketingSms === true) grants.push('marketing_sms');
+  if (input.consent?.whatsappFollowUp === true) grants.push('whatsapp_followup');
   if (grants.length > 0 && !phone) {
     issues.push({
       questionId: null,
@@ -179,10 +180,11 @@ export async function submitResponse(
   const replay = async (doc: ResponseDoc): Promise<SubmissionResult> => {
     // Re-applies consent from the stored snapshot (idempotent) in case a first attempt crashed.
     const s = doc.consentSnapshot;
-    if (doc.contactId && s && (s.reviewRequestSms || s.marketingSms)) {
+    if (doc.contactId && s && (s.reviewRequestSms || s.marketingSms || s.whatsappFollowUp)) {
       const grants: ConsentPurpose[] = [];
       if (s.reviewRequestSms) grants.push('review_request_sms');
       if (s.marketingSms) grants.push('marketing_sms');
+      if (s.whatsappFollowUp) grants.push('whatsapp_followup');
       await recordConsent(
         businessId,
         doc.contactId,
@@ -226,6 +228,7 @@ export async function submitResponse(
           ? {
               reviewRequestSms: v.grants.includes('review_request_sms'),
               marketingSms: v.grants.includes('marketing_sms'),
+              whatsappFollowUp: v.grants.includes('whatsapp_followup'),
               wordingVersion: CONSENT_WORDING_VERSION,
             }
           : null,

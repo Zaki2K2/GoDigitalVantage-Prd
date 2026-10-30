@@ -5,12 +5,25 @@ import { env } from '../../config/env';
 export const ACCESS_TTL_SECONDS = 15 * 60;
 export const REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60;
 
-export function signAccessToken(userId: string, sessionVersion = 0): string {
-  return jwt.sign({ sessionIssuedAt: Date.now(), sessionVersion }, env.JWT_ACCESS_SECRET, {
-    algorithm: 'HS256',
-    subject: userId,
-    expiresIn: ACCESS_TTL_SECONDS,
-  });
+export function signAccessToken(userId: string, sessionVersion = 0, sessionId?: string): string {
+  return jwt.sign(
+    { sessionIssuedAt: Date.now(), sessionVersion, ...(sessionId ? { sid: sessionId } : {}) },
+    env.JWT_ACCESS_SECRET,
+    {
+      algorithm: 'HS256',
+      subject: userId,
+      expiresIn: ACCESS_TTL_SECONDS,
+    },
+  );
+}
+
+/** Refresh-token family id of the login this access token belongs to (undefined for legacy tokens). */
+export function accessSessionId(token: string): string | undefined {
+  const payload = jwt.decode(token);
+  if (!payload || typeof payload === 'string') return undefined;
+  return typeof payload['sid'] === 'string' && payload['sid'].length <= 64
+    ? payload['sid']
+    : undefined;
 }
 
 /** Returns the user id, or null if the token is missing/invalid/expired. */

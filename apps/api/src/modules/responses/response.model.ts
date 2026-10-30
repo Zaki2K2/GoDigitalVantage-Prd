@@ -25,6 +25,7 @@ export interface ResponseDoc {
   consentSnapshot: {
     reviewRequestSms: boolean;
     marketingSms: boolean;
+    whatsappFollowUp?: boolean;
     wordingVersion: string;
   } | null;
   idempotencyKey: string;
@@ -58,7 +59,12 @@ const responseSchema = new Schema<ResponseDoc>(
     rating: { type: Number, default: null },
     consentSnapshot: {
       type: new Schema(
-        { reviewRequestSms: Boolean, marketingSms: Boolean, wordingVersion: String },
+        {
+          reviewRequestSms: Boolean,
+          marketingSms: Boolean,
+          whatsappFollowUp: Boolean,
+          wordingVersion: String,
+        },
         { _id: false },
       ),
       default: null,

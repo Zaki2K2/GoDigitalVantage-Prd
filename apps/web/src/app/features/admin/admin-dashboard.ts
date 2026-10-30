@@ -42,14 +42,14 @@ export class AdminDashboard {
     {
       metric: 'Responses',
       label: 'Feedback responses',
-      route: '/admin/responses',
+      route: '/admin/support',
       icon: 'responses',
       description: 'Customer submissions',
     },
     {
       metric: 'Promotions',
       label: 'Total promotions',
-      route: '/admin/promotions',
+      route: '/admin/support',
       icon: 'gift',
       description: 'Rewards created by businesses',
     },
@@ -98,37 +98,37 @@ export class AdminDashboard {
     {
       title: 'Customer activity',
       icon: 'contacts',
-      route: '/admin/responses',
+      route: '/admin/support',
       items: [
         {
           metric: 'Responses today (UTC)',
           label: 'Responses today (UTC)',
-          route: '/admin/responses',
+          route: '/admin/support',
         },
         {
           metric: 'Responses this month (UTC)',
           label: 'Responses this month (UTC)',
-          route: '/admin/responses',
+          route: '/admin/support',
         },
-        { metric: 'Contacts', label: 'Contacts collected', route: '/admin/contacts' },
+        { metric: 'Contacts', label: 'Contacts collected', route: '/admin/support' },
         { metric: 'QR scans', label: 'QR scans recorded', route: '/admin/businesses' },
       ],
     },
     {
       title: 'Promotions',
       icon: 'gift',
-      route: '/admin/promotions',
+      route: '/admin/support',
       items: [
         {
           metric: 'Redeemed promotions',
           label: 'Redeemed promotions',
-          route: '/admin/promotions',
+          route: '/admin/support',
           query: { status: 'redeemed' },
         },
         {
           metric: 'Expired promotions',
           label: 'Expired promotions',
-          route: '/admin/promotions',
+          route: '/admin/support',
           query: { status: 'expired' },
         },
       ],

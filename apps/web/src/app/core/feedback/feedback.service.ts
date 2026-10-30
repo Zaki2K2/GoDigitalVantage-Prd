@@ -18,7 +18,7 @@ export interface Submission {
   version: number;
   answers: SubmissionAnswer[];
   contact?: { fullName?: string; email?: string; phone?: string };
-  consent?: { reviewRequestSms?: boolean; marketingSms?: boolean };
+  consent?: { reviewRequestSms?: boolean; marketingSms?: boolean; whatsappFollowUp?: boolean };
   /** Honeypot: always left empty by real visitors. */
   website?: string;
 }
@@ -99,7 +99,11 @@ export interface ContactItem extends ContactBrief {
   responseCount: number;
   firstResponseAt: string;
   lastResponseAt: string;
-  consent: { reviewRequestSms: string | null; marketingSms: string | null };
+  consent: {
+    reviewRequestSms: string | null;
+    marketingSms: string | null;
+    whatsappFollowUp?: string | null;
+  };
 }
 
 export interface ContactDetail {
@@ -181,6 +185,15 @@ export class FeedbackApi {
     let params = new HttpParams().set('page', page).set('pageSize', 15);
     if (search.trim()) params = params.set('search', search.trim());
     return this.http.get<Page<ContactItem>>(`${BUSINESSES}/${businessId}/contacts`, { params });
+  }
+
+  createContact(
+    businessId: string,
+    body: { fullName?: string; email?: string; phone?: string },
+  ): Observable<ContactItem> {
+    return this.http
+      .post<{ data: ContactItem }>(`${BUSINESSES}/${businessId}/contacts`, body)
+      .pipe(map((r) => r.data));
   }
 
   contact(businessId: string, id: string): Observable<ContactDetail> {
