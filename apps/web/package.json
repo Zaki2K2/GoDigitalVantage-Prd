@@ -4,10 +4,12 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "prebuild": "node scripts/sync-vercel.cjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "start:lan": "ng serve --host 0.0.0.0"
+    "start:lan": "ng serve --host 0.0.0.0",
+    "sync:vercel": "node scripts/sync-vercel.cjs"
   },
   "private": true,
   "engines": {
