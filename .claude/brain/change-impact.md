@@ -54,3 +54,7 @@ Image DTO fields (`avatarUrl`/`logoUrl`) -> `toUserDto`, `toBusinessDto`, `getPu
 ## Privacy-first Super Admin (2026-10-28)
 
 New admin resources must be classified in `admin.service.ts` (`PLATFORM_RESOURCES` vs `RESTRICTED_RESOURCES`); anything holding tenant customer data belongs in the restricted set and is reachable only through `support.routes.ts`. Changes to campaign routes under `/admin/campaigns` must keep `authorizeBusinessWrite` gating and the recipient-field stripping. Changes to `support_access_log` must stay append-only. Check `tests/privacy-admin.test.ts`, `tests/admin.test.ts`, `tests/campaigns.test.ts`, web `admin.spec.ts`, campaign picker/spec, shell nav and Settings support card.
+
+## Environment and delivery hardening (2026-10-30)
+
+Env schema/loader changes also affect scripts/audit-env.ts, tests/security-config.test.ts, tests/network-safety.ts and vitest.config.mts. Development/Preview use RESEND_DEV_API_KEY and RESEND_DEV_WEBHOOK_SECRET with restricted recipient mode; automated email needs an injected mock transport. WhatsApp outside production is loopback-mock only. Keep owner-approved support/marketing restrictions authoritative. See docs/security/hardening-audit-2026-10-30.md before release.

@@ -24,3 +24,7 @@ Shared modules/email owns templates, sender policy, gated Resend transport and g
 ## Restricted email testing
 
 Email transport has two explicit modes under the disabled-by-default master switch: verified custom-domain production, or account-email-only Resend onboarding testing. Both retain the same templates, provider idempotency, signed receipts and reward security.
+
+## Runtime and environment safety (2026-10-30)
+
+Node 22.x is declared at root and both apps, with .nvmrc/.node-version and a Node 22 CI workflow using isolated MongoDB. Vercel project defaults still report 24.x and need operator alignment. Startup validates delivery configuration and unsafe/reused signing secrets; production env is injected by Vercel, not loaded from .env.production. See docs/security/hardening-audit-2026-10-30.md for blockers, non-production delivery rules and names-only auditing.

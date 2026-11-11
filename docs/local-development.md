@@ -66,3 +66,11 @@ npm run format:check
 ```
 
 API integration tests use the separate `gdv_test` database and clear their test collections. They cover local QR PNG/SVG downloads and configured LAN URLs, public submissions and retries, required fields and all five question types, real dashboard aggregates, authorization/CSRF, and multi-business isolation. Do not point test configuration at production data.
+
+## Safe environment setup (30 October 2026)
+
+Use Node 22 (see .nvmrc/.node-version). Generate two independent random JWT secrets before first startup; example placeholders and repeated-character secrets now fail validation. Existing local placeholder secrets were deliberately not rotated automatically. Run `npm --prefix apps/api run security:audit-env` to see unsafe variable names without revealing values.
+
+Keep EMAIL_ENABLED=false. Development and Vercel Preview ignore production Resend credentials and use RESEND_DEV_API_KEY/RESEND_DEV_WEBHOOK_SECRET only. An explicitly authorized restricted delivery test also needs EMAIL_TEST_MODE=true and a single RESEND_TEST_EMAIL. Automated tests use synthetic credentials, mock transports and a network guard. WhatsApp is disabled locally; development testing uses the existing loopback mock Graph service, never Meta. See [hardening audit](security/hardening-audit-2026-10-30.md).
+
+The complete API suite requires a dedicated local `/gdv_test` database. Override its port with GDV_TEST_MONGODB_URI (for example mongodb://127.0.0.1:27028/gdv_test). Remote hosts, credentials, other database names and query strings are rejected because tests can drop this database. Never point tests at application data.

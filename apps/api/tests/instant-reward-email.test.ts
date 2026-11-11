@@ -15,10 +15,11 @@ const domainResponse = () =>
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { env } from '../src/config/env';
 import {
-  resendMailer,
   rewardEmail,
   verifyEmailWebhook,
 } from '../src/modules/instant-rewards/instant-reward.email';
+import { createResendMailer } from '../src/modules/email/email.service';
+const resendMailer = { send: createResendMailer((...args) => fetch(...args)) };
 const original = {
   RESEND_API_KEY: env.RESEND_API_KEY,
   EMAIL_ENABLED: env.EMAIL_ENABLED,

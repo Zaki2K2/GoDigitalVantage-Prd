@@ -45,3 +45,7 @@ Follow [Resend email configuration](email-resend.md) for exact API environment v
 ## Performance diagnostics
 
 See [production performance investigation](performance-vercel.md) for measured baselines, region/Fluid/log checks and post-deployment validation. `PERFORMANCE_LOGGING=true` enables safe API timing logs and startup/connect Server-Timing; default false. Confirm Atlas's actual deployed primary region before selecting a Vercel function region. Production disables automatic collection/index creation. The web config now gives immutable browser caching only to hashed Angular JS/CSS; HTML and APIs retain their existing behavior.
+
+## Release gate (30 October 2026)
+
+Read the [current security audit](security/hardening-audit-2026-10-30.md) before the next deployment. Vercel sensitive-variable exports are redacted and cannot validate their values; variable presence and live health were checked separately. CRON_SECRET and MARKETING_UNSUBSCRIBE_SECRET are absent in project metadata. Source Node engines are 22.x, while project defaults report 24.x. Separate Preview database/credentials from Production. The new startup checks can intentionally reject the currently unsafe local production configuration; resolve the recorded secret/configuration blockers first. No project settings, credentials or deployment were changed by the audit.

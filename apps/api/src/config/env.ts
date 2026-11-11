@@ -12,7 +12,7 @@ export class EnvError extends Error {
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
   const errors = parsed.error.flatten().fieldErrors;
-  console.error('Invalid environment:', errors);
+  console.error('Invalid environment variables:', Object.keys(errors));
   // Throw instead of process.exit: a local start still fails loudly (uncaught error, exit 1), and the
   // serverless handler can answer with a clear 500 instead of crashing the whole function process.
   throw new EnvError(Object.keys(errors));

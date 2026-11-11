@@ -42,6 +42,18 @@ export async function sendWhatsApp(
   toDigits: string,
   content: { text: string } | { template: string },
 ): Promise<SendResult> {
+  if (!whatsappConfigured()) return { ok: false, errorCode: 'whatsapp_not_configured' };
+  const endpoint = new URL(env.WHATSAPP_GRAPH_BASE_URL);
+  if (
+    (env.NODE_ENV !== 'production' ||
+      env.VERCEL_ENV === 'preview' ||
+      env.VERCEL_ENV === 'development') &&
+    (!['localhost', '127.0.0.1', '[::1]'].includes(endpoint.hostname) ||
+      !['http:', 'https:'].includes(endpoint.protocol) ||
+      endpoint.username ||
+      endpoint.password)
+  )
+    return { ok: false, errorCode: 'whatsapp_nonproduction_network_blocked' };
   const message =
     'text' in content
       ? { type: 'text', text: { body: content.text, preview_url: false } }

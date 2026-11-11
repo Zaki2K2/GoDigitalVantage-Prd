@@ -6,6 +6,7 @@ import { createApp } from '../src/app';
 import { AdminReauth, SupportGrant } from '../src/modules/admin/support.model';
 import { activeGrant } from './support-helpers';
 import { reviewPlatformCampaigns } from '../src/modules/campaigns/campaign.legacy-audit';
+import { env } from '../src/config/env';
 import { User } from '../src/modules/auth/user.model';
 import { Business } from '../src/modules/businesses/business.model';
 import { BusinessMembership } from '../src/modules/businesses/membership.model';
@@ -752,8 +753,8 @@ describe('campaign API and execution', () => {
   it('exposes secret-free monitoring only to Super Admin and records authenticated scheduler heartbeats', async () => {
     expect((await owner.agent.get('/api/v1/admin/campaigns/monitoring')).status).toBe(403);
     const secret = 'scheduler-test-secret-'.repeat(3),
-      previous = process.env['CRON_SECRET'];
-    process.env['CRON_SECRET'] = secret;
+      previous = env.CRON_SECRET;
+    env.CRON_SECRET = secret;
     try {
       expect(
         (
@@ -777,8 +778,7 @@ describe('campaign API and execution', () => {
       expect(JSON.stringify(r.body)).not.toContain(secret);
       expect(JSON.stringify(r.body)).not.toContain('private-lock-token');
     } finally {
-      if (previous === undefined) delete process.env['CRON_SECRET'];
-      else process.env['CRON_SECRET'] = previous;
+      env.CRON_SECRET = previous;
     }
   });
   it('uses actual issued offers, rather than suppressed targets, as the redemption denominator', async () => {

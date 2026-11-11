@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { envSchema } from '../src/config/env.schema';
 
 const required = {
+  NODE_ENV: 'test',
   MONGODB_URI: 'mongodb://127.0.0.1:27017/gdv_test',
   CORS_ORIGIN: 'http://localhost:4200',
   JWT_ACCESS_SECRET: 'x'.repeat(32),

@@ -276,9 +276,10 @@ export async function handleWhatsAppWebhook(payload: unknown) {
         m.type === 'text' && m.text ? m.text.body.slice(0, 1000) : '[Unsupported message type]';
       const threads = await outboundThreads(m.from);
       const route = await routeInbound(m.from, m.context?.id, threads);
+      let receivedAt = new Date();
       if (route) {
         try {
-          await FollowUp.create({
+          const incoming = await FollowUp.create({
             businessId: route.businessId,
             contactId: route.contactId,
             responseId: null,
@@ -289,9 +290,15 @@ export async function handleWhatsAppWebhook(payload: unknown) {
             providerMessageId: m.id,
             phoneDigits: m.from,
           });
+          receivedAt = incoming.createdAt;
         } catch (err) {
-          if ((err as { code?: number }).code === 11000) continue; // webhook retry
-          throw err;
+          if ((err as { code?: number }).code !== 11000) throw err;
+          // A previous delivery may have stored the reply but failed while applying STOP.
+          // Retry suppression too, using the original time so a replay cannot undo later consent.
+          const stored = await FollowUp.findOne({ providerMessageId: m.id, direction: 'inbound' })
+            .select('createdAt')
+            .lean();
+          if (stored) receivedAt = stored.createdAt;
         }
       }
       // STOP is honoured for every business that messaged this number, even when the reply
@@ -300,7 +307,7 @@ export async function handleWhatsAppWebhook(payload: unknown) {
         for (const t of threads)
           await Contact.updateOne(
             { _id: t.contactId, businessId: t.businessId },
-            { $set: { followUpOptOutAt: new Date() } },
+            { $max: { followUpOptOutAt: receivedAt } },
           );
     }
   }

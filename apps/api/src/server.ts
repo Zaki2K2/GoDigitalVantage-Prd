@@ -7,7 +7,7 @@ async function main() {
   createApp().listen(env.PORT, () => console.log(`API listening on :${env.PORT}`));
 }
 
-main().catch((err) => {
-  console.error('Startup failed:', err instanceof Error ? err.message : err);
+main().catch(() => {
+  console.error('Startup failed; verify environment configuration and database connectivity');
   process.exit(1);
 });

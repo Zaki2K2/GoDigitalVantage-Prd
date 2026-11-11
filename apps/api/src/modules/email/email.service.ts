@@ -48,7 +48,17 @@ const domains = z.object({
   ),
   has_more: z.boolean().optional(),
 });
+// Tests inject a mock transport; the application entry never sends from NODE_ENV=test.
+export function createResendMailer(transport: typeof fetch) {
+  return (email: EmailMessage) => deliverResendEmail(email, transport);
+}
 export async function sendResendEmail(email: EmailMessage): Promise<{ id: string }> {
+  return deliverResendEmail(email);
+}
+async function deliverResendEmail(
+  email: EmailMessage,
+  transport?: typeof fetch,
+): Promise<{ id: string }> {
   if (email.unsubscribeUrl) {
     const parsed = z.url().safeParse(email.unsubscribeUrl);
     if (
@@ -59,6 +69,13 @@ export async function sendResendEmail(email: EmailMessage): Promise<{ id: string
       throw new AppError(422, 'INVALID_EMAIL', 'Invalid unsubscribe URL');
   }
   if (!env.EMAIL_ENABLED) fail('EMAIL_DISABLED', 'Email sending is disabled');
+  if (
+    (env.NODE_ENV === 'development' ||
+      env.VERCEL_ENV === 'preview' ||
+      env.VERCEL_ENV === 'development') &&
+    !env.EMAIL_TEST_MODE
+  )
+    fail('EMAIL_TEST_MODE_REQUIRED', 'Development email requires restricted test mode');
   if (env.EMAIL_TEST_MODE) {
     const allowed = env.RESEND_TEST_EMAIL?.trim().toLowerCase();
     if (!allowed || !z.email().safeParse(allowed).success)
@@ -91,6 +108,9 @@ export async function sendResendEmail(email: EmailMessage): Promise<{ id: string
       'Use a new explicit email operation after the retry window',
     );
   const from = emailSender(email.kind);
+  if (env.NODE_ENV === 'test' && !transport)
+    fail('EMAIL_TEST_NETWORK_BLOCKED', 'Automated tests require an injected email transport');
+  const request = transport ?? fetch;
   const signal = AbortSignal.timeout(8000);
   const auth = { Authorization: `Bearer ${env.RESEND_API_KEY}` };
   if (!env.EMAIL_TEST_MODE) {
@@ -99,7 +119,7 @@ export async function sendResendEmail(email: EmailMessage): Promise<{ id: string
     let after: string | undefined;
     try {
       for (let page = 0; page < 10; page++) {
-        const response = await fetch(
+        const response = await request(
           `https://api.resend.com/domains?limit=100${after ? `&after=${encodeURIComponent(after)}` : ''}`,
           { headers: auth, signal },
         );
@@ -124,7 +144,7 @@ export async function sendResendEmail(email: EmailMessage): Promise<{ id: string
   }
   let response: Response;
   try {
-    response = await fetch('https://api.resend.com/emails', {
+    response = await request('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         ...auth,

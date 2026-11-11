@@ -11,6 +11,8 @@ import { Business } from '../src/modules/businesses/business.model';
 import { BusinessMembership } from '../src/modules/businesses/membership.model';
 import { Contact } from '../src/modules/contacts/contact.model';
 import { FollowUp } from '../src/modules/followups/followup.model';
+import { handleWhatsAppWebhook } from '../src/modules/followups/followup.service';
+import { sendWhatsApp } from '../src/modules/followups/followup.whatsapp';
 
 const app = createApp();
 const PASSWORD = 'test-secure-password-123';
@@ -54,6 +56,7 @@ const enableWhatsApp = () =>
     WHATSAPP_PHONE_NUMBER_ID: '123456789012345',
     WHATSAPP_APP_SECRET: SECRET,
     WHATSAPP_VERIFY_TOKEN: VERIFY,
+    WHATSAPP_GRAPH_BASE_URL: 'http://127.0.0.1:3198',
   });
 
 async function login(role: 'USER' | 'SUPER_ADMIN' = 'USER') {
@@ -368,6 +371,53 @@ describe('feedback follow-up: company scoping', () => {
 });
 
 describe('WhatsApp webhook', () => {
+  it('retries STOP suppression after a partial failure without moving the original opt-out time', async () => {
+    enableWhatsApp();
+    const owner = await login();
+    const b = await business(owner);
+    const c = await contact(b._id);
+    await FollowUp.create({
+      businessId: b._id,
+      contactId: c._id,
+      direction: 'outbound',
+      channel: 'whatsapp_api',
+      body: 'Test',
+      status: 'delivered',
+      providerMessageId: 'wamid.RETRY',
+      phoneDigits: '14155550123',
+    });
+    const payload = change({
+      messages: [
+        { id: 'wamid.STOP_RETRY', from: '14155550123', type: 'text', text: { body: 'STOP' } },
+      ],
+    });
+    const update = vi
+      .spyOn(Contact, 'updateOne')
+      .mockRejectedValueOnce(new Error('test write failure'));
+    await expect(handleWhatsAppWebhook(payload)).rejects.toThrow('test write failure');
+    update.mockRestore();
+    expect(await FollowUp.countDocuments({ providerMessageId: 'wamid.STOP_RETRY' })).toBe(1);
+    await handleWhatsAppWebhook(payload);
+    const stopped = (await Contact.findById(c._id))!.followUpOptOutAt!;
+    expect(stopped).toBeInstanceOf(Date);
+    await Contact.updateOne(
+      { _id: c._id },
+      { $set: { 'consent.whatsappFollowUp': new Date(+stopped + 1000) } },
+    );
+    await handleWhatsAppWebhook(payload);
+    expect(+(await Contact.findById(c._id))!.followUpOptOutAt!).toBe(+stopped);
+  });
+  it('blocks Meta delivery outside production even if credentials and switches are set', async () => {
+    enableWhatsApp();
+    env.WHATSAPP_GRAPH_BASE_URL = 'https://graph.facebook.com';
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+    expect(await sendWhatsApp('14155550123', { template: 'hello_world' })).toEqual({
+      ok: false,
+      errorCode: 'whatsapp_nonproduction_network_blocked',
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   it('answers the verification handshake only with the right token', async () => {
     enableWhatsApp();
     const q = (token: string) =>

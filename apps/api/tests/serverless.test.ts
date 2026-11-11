@@ -81,7 +81,7 @@ describe('Vercel handler', () => {
     const missing = await request(handler).get('/api/v1/nope');
     expect(missing.status).toBe(404);
     expect(missing.body.error.code).toBe('NOT_FOUND');
-  });
+  }, 20000); // Cold dynamic imports on Windows can exceed the default five-second test budget.
 
   it('emits opt-in route-template timings without logging secrets or request input', async () => {
     const previous = process.env['PERFORMANCE_LOGGING'];

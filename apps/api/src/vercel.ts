@@ -86,7 +86,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     startupMs = performance.now() - started;
   } catch (err) {
     startupMs = performance.now() - started;
-    console.error('Startup error:', err instanceof Error ? `${err.name}: ${err.message}` : err);
+    console.error('Startup error:', err instanceof Error ? err.name : 'UnknownError');
     // Names of invalid variables are safe to show (never values); other failures stay generic.
     const fields = (err as { name?: string; fields?: unknown }).fields;
     const isEnv = err instanceof Error && err.name === 'EnvError' && Array.isArray(fields);
@@ -109,9 +109,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   try {
     await connectDb();
     connectMs = performance.now() - connectionStarted;
-  } catch (err) {
+  } catch {
     connectMs = performance.now() - connectionStarted;
-    console.error('Database unavailable:', err instanceof Error ? err.message : err);
+    console.error('Database unavailable');
     res.statusCode = 503;
     res.setHeader('content-type', 'application/json');
     res.end(

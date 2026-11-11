@@ -16,7 +16,8 @@
     "whatsapp:mock": "node scripts/whatsapp-mock-graph.mjs",
     "campaigns:audit-legacy": "tsx scripts/campaign-legacy-audit.ts",
     "support:retention": "tsx scripts/support-retention.ts",
-    "security:check-audit-permissions": "tsx scripts/check-audit-permissions.ts"
+    "security:check-audit-permissions": "tsx scripts/check-audit-permissions.ts",
+    "security:audit-env": "tsx scripts/audit-env.ts"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

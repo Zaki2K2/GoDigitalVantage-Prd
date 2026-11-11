@@ -153,10 +153,8 @@ export function createCampaignRouter() {
         configuration: {
           indexesReady,
           emailEnabled: env.EMAIL_ENABLED,
-          unsubscribeConfigured: Boolean(
-            env.MARKETING_UNSUBSCRIBE_SECRET || env.NODE_ENV !== 'production',
-          ),
-          schedulerConfigured: (process.env['CRON_SECRET']?.length ?? 0) >= 32,
+          unsubscribeConfigured: Boolean(env.MARKETING_UNSUBSCRIBE_SECRET),
+          schedulerConfigured: Boolean(env.CRON_SECRET),
         },
         serverTime: new Date(),
       },

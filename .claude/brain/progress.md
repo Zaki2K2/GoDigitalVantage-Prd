@@ -155,3 +155,25 @@ Implemented default-deny customer data for Super Admin, owner-approved support g
 - Manual contact add (2026-10-28): `POST /businesses/:id/contacts` (owner, `contacts:manage`) + "Add contact" form on the Contacts page. Needs email or +country-code phone; duplicates in the same business return 409 `CONTACT_EXISTS`; no consent is recorded, so follow-up and promotions stay blocked until the customer grants it.
 
 - Follow-up review fixes (2026-10-28): WhatsApp-specific consent, template confirmation, multi-tenant webhook routing, browser-tested contact creation + click-to-chat + API send (22/22, mock Graph). Existing contacts have no WhatsApp consent, so follow-up stays off for them until they re-consent. See [decisions](decisions.md).
+
+## Security and reliability audit (2026-10-30)
+
+Started clean on main 560e7d3, compared every local/fetched remote branch, then fast-forwarded to the already-published 8bc2de2 merge when origin/main advanced. Reapplied hardening without dropping privacy-first support grants, owner-approved platform campaigns or the existing WhatsApp module. No new commit/push/deployment.
+
+Implemented development/Preview Resend credential separation and restricted recipient requirements, default test mailer network denial plus explicit mocked transport, dotenv-free synthetic test configuration and loopback-only isolated MongoDB overrides, startup secret/config validation with names-only errors, removal of the exposed webhook example and JWT unsubscribe fallback, validated cron configuration/monitoring, loopback-only non-production WhatsApp and durable STOP suppression replay recovery. Added names-only security:audit-env, Node 22 version files/root engine and isolated MongoDB CI checks. Patched the existing body-parser transitive dependency to 2.4.0 (GHSA-27r3-jxmh-p828), preserving cross-platform lock entries and adding no direct dependency.
+
+External checks: current production health succeeds through direct API and web proxy. Vercel required env names exist but sensitive values are intentionally unreadable; cron/unsubscribe secrets and cron definitions are absent. Project default Node remains 24.x. Resend approved domain exists but is unverified; expected signed-receipt webhook is enabled. Preview database/secret separation and production index/append-only-audit privileges need operator verification. No provider or production setting/data/credential was modified, and no real email/WhatsApp was sent.
+
+Current local dev switches disabled; production provider credentials removed from ignored development env only. Developer JWT placeholders were not rotated automatically and now block dev startup. Local production env is unchanged and fails the new checks for its exposed webhook secret and missing unsubscribe secret. Rotation and release checklist: docs/security/hardening-audit-2026-10-30.md.
+
+### Final validation (Node 22.23.4)
+
+- Complete API suite: 340/340 passed in 26 files against the temporary loopback MongoDB instance; zero skipped. Includes privacy/support access, tenant boundaries, campaign owner approvals, consent/unsubscribe, scheduler authentication, locks/retries, serverless behavior, email safety and WhatsApp routing/STOP.
+- ChromeHeadless frontend suite: 206/206 passed; zero skipped.
+- ESLint, API typecheck, Angular app/spec typechecks and both production builds passed.
+- Fresh API npm ci from the amended lockfile passed; all optional platform lock entries were retained. Production dependency audits report zero vulnerabilities for API and web after body-parser 2.4.0.
+- Negative checks confirmed remote hosts, non-test database names and credential-bearing test URI overrides are rejected before tests execute.
+- Changed-file formatting and git diff whitespace checks passed. Existing non-fatal test server-listener warnings and browser fixture/font/tracking warnings remain; these did not skip or fail tests. CI was authored but not run remotely.
+- An earlier interrupted run and runs on the older checkout are superseded by this complete supported-runtime run. Live delivery/inbox tests, live cron execution and production database migrations/permission checks were not run.
+
+Final campaign-only regression: 44/44 passed after retaining only the existing upstream clock hooks. Temporary MongoDB process stopped; automatic approval review blocked removal of its temporary files (blocked by policy). Installed Windows service left stopped as originally found. No skipped tests remain in final verification.

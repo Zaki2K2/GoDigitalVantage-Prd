@@ -89,16 +89,13 @@ export async function applyMarketingReceipt(providerMessageId: string, type: str
 }
 
 const mac = (payload: string) => {
-  if (env.NODE_ENV === 'production' && !env.MARKETING_UNSUBSCRIBE_SECRET)
+  if (!env.MARKETING_UNSUBSCRIBE_SECRET)
     throw new AppError(
       503,
       'MARKETING_NOT_CONFIGURED',
       'Configure the permanent marketing unsubscribe secret',
     );
-  return createHmac(
-    'sha256',
-    `${env.MARKETING_UNSUBSCRIBE_SECRET ?? env.JWT_ACCESS_SECRET}:campaign-unsubscribe:v1`,
-  )
+  return createHmac('sha256', `${env.MARKETING_UNSUBSCRIBE_SECRET}:campaign-unsubscribe:v1`)
     .update(payload)
     .digest('hex');
 };

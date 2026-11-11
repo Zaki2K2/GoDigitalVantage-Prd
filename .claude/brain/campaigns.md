@@ -104,3 +104,7 @@ Draft state survives step changes. Dirty close/Escape, template replacement, rou
 
 
 Shared dropdown migration (2026-10-20): campaign filters/builder selects and contact marketing-consent selection use AppSelect; card actions use ActionMenu. Both share top-layer overlays inside the existing DialogFocus modal hierarchy. Native validation, values, lifecycle handlers and all authorization/consent/reward/execution contracts are unchanged. See [dropdowns](dropdowns.md).
+
+## Configuration hardening (2026-10-30)
+
+MARKETING_UNSUBSCRIBE_SECRET is required for token signing in every environment; the JWT fallback was removed and monitoring no longer reports it as configured. CRON_SECRET is optional to disable the scheduler, but validated at startup when supplied, and the cron endpoint reads validated env. Production enabled email/scheduler configuration requires the independent unsubscribe key. No cron was activated; production variable metadata lacks both secrets. Tenant consent, owner approvals, locks, immutable retry keys and support privacy restrictions are preserved. See docs/security/hardening-audit-2026-10-30.md.

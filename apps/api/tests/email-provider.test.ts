@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { env } from '../src/config/env';
 import { envSchema } from '../src/config/env.schema';
-import { sendResendEmail, emailSender } from '../src/modules/email/email.service';
+import { createResendMailer, emailSender } from '../src/modules/email/email.service';
 import { renderEmail, type EmailTemplate } from '../src/modules/email/email.templates';
+const sendResendEmail = createResendMailer((...args) => fetch(...args));
 const original = { ...env };
 const domain = (status = 'verified', sending = 'enabled') =>
   new Response(
@@ -48,6 +49,7 @@ describe('shared email provider', () => {
   });
   it('defaults disabled, parses false strictly, allows blank secrets, rejects invalid sender/header injection', () => {
     const config = {
+      NODE_ENV: 'test',
       MONGODB_URI: 'mongodb://localhost/gdv_test',
       CORS_ORIGIN: 'http://localhost:4200',
       PUBLIC_APP_BASE_URL: 'http://localhost:4200',
@@ -254,6 +256,7 @@ describe('shared email provider', () => {
   });
   it('strictly parses test flags and normalizes the single optional account email', () => {
     const config = {
+      NODE_ENV: 'test',
       MONGODB_URI: 'mongodb://localhost/gdv_test',
       CORS_ORIGIN: 'http://localhost:4200',
       PUBLIC_APP_BASE_URL: 'http://localhost:4200',
